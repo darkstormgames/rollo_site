@@ -28,7 +28,10 @@ Secure Single Sign-On backend service for Rollo Site and other applications.
 
 1. Install dependencies:
 ```bash
-cd backend
+# From the monorepo root
+npm run install:sso
+
+# Or from this directory
 npm install
 ```
 
@@ -45,6 +48,10 @@ npm run migrate
 
 4. Start the server:
 ```bash
+# From the monorepo root
+npm run dev:sso
+
+# Or from this directory:
 # Development
 npm run dev
 

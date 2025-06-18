@@ -1,188 +1,172 @@
-# Rollo Site
-Private Website project for portfolio and management stuff
+# Rollo Monorepo
+
+This is a monorepo containing multiple Rollo applications and shared packages for better maintainability and code reuse across projects.
 
 ## Overview
-A modern, secure Angular website built with Node.js for showcasing portfolios and providing management tools. This project follows security best practices and provides a clean, professional interface.
 
-## Technology Stack
-- **Frontend**: Angular 20+
-- **Runtime**: Node.js 20.19.2
-- **Package Manager**: npm
-- **Styling**: SCSS
-- **Language**: TypeScript
-- **Build System**: Angular CLI with esbuild
+The monorepo is structured to support multiple websites served over subdomains while sharing common styles and utilities. Each application is isolated for security and maintainability.
 
-## Prerequisites
-- Node.js 20.19.2 or later
-- npm 10.8.2 or later
-- Angular CLI 20+ (installed globally)
+## Repository Structure
 
-## Project Structure
 ```
-rollo_site/
-├── .angular/                 # Angular cache (generated)
-├── .github/                  # GitHub workflows and templates
-├── .vscode/                  # VS Code configuration
-├── dist/                     # Build output (generated)
-├── node_modules/             # Dependencies (generated)
-├── public/                   # Static assets
-│   └── favicon.ico
-├── src/                      # Source code
-│   ├── app/                  # Application code
-│   │   ├── pages/            # Page components
-│   │   │   ├── about/        # About page
-│   │   │   ├── contact/      # Contact page
-│   │   │   ├── home/         # Home page
-│   │   │   └── portfolio/    # Portfolio page
-│   │   ├── app.config.ts     # App configuration
-│   │   ├── app.html          # Main app template
-│   │   ├── app.routes.ts     # Routing configuration
-│   │   ├── app.scss          # App-specific styles
-│   │   ├── app.spec.ts       # App tests
-│   │   └── app.ts            # Main app component
-│   ├── index.html            # Main HTML file
-│   ├── main.ts               # Application bootstrap
-│   └── styles.scss           # Global styles
-├── .editorconfig             # Editor configuration
-├── .gitignore                # Git ignore rules
-├── angular.json              # Angular workspace config
-├── package.json              # Dependencies and scripts
-├── package-lock.json         # Dependency lock file
-├── README.md                 # This file
-├── tsconfig.app.json         # TypeScript config for app
-├── tsconfig.json             # Main TypeScript config
-└── tsconfig.spec.json        # TypeScript config for tests
+rollo-monorepo/
+├── apps/                     # Individual applications
+│   ├── rollo-site/          # Main website (Angular)
+│   └── sso/                 # SSO authentication service (Express.js)
+├── packages/                # Shared packages
+│   └── shared-styles/       # Common design system and styles
+├── .github/                 # GitHub workflows and templates
+├── .vscode/                 # VS Code configuration
+├── DEPLOYMENT.md           # Deployment instructions
+├── SSO_SETUP.md           # SSO setup guide
+└── README.md              # This file
 ```
 
-## Getting Started
+## Applications
+
+### Rollo Site (`apps/rollo-site/`)
+- **Technology**: Angular 20, TypeScript, SCSS
+- **Purpose**: Main portfolio and management website
+- **Features**: Responsive design, security headers, SEO optimization
+- **Documentation**: See `apps/rollo-site/README.md`
+
+### SSO Service (`apps/sso/`)
+- **Technology**: Express.js, Node.js, MySQL
+- **Purpose**: Secure Single Sign-On service for all applications
+- **Features**: JWT authentication, multi-site support, user access levels
+- **Documentation**: See `apps/sso/README.md`
+
+## Shared Packages
+
+### Shared Styles (`packages/shared-styles/`)
+- **Purpose**: Common design system and styles for all applications
+- **Features**: Consistent branding, responsive utilities, theme support
+- **Documentation**: See `packages/shared-styles/README.md`
+
+## Quick Start
+
+### Prerequisites
+- Node.js 20+
+- npm 10+
+- MySQL 5.7+ (for SSO service)
+- Angular CLI 20+ (for frontend development)
 
 ### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/darkstormgames/rollo_site.git
-   cd rollo_site
-   ```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Development
-Start the development server:
+Install all dependencies:
 ```bash
-npm start
-# or
-ng serve
+npm run install:all
 ```
 
-The application will be available at `http://localhost:4200/`
-
-For external access (useful in containers or remote development):
+Or install for specific apps:
 ```bash
-npm run serve
+npm run install:rollo-site
+npm run install:sso
+```
+
+### Development
+
+Start the main website:
+```bash
+npm run dev:rollo-site
 # or
-ng serve --host 0.0.0.0 --port 4200
+npm run dev
+# or
+npm start
+```
+
+Start the SSO service:
+```bash
+npm run dev:sso
 ```
 
 ### Building
-Build the project for production:
+
+Build all applications:
 ```bash
-npm run build
-# or
-ng build
+npm run build:all
 ```
 
-The build artifacts will be stored in the `dist/rollo_site/` directory.
+Build specific applications:
+```bash
+npm run build:rollo-site
+npm run build:sso
+```
 
 ### Testing
-Run unit tests:
+
+Run all tests:
 ```bash
-npm test
-# or
-ng test
+npm run test:all
 ```
 
-### Linting
-Check code quality:
+Run tests for specific applications:
 ```bash
-ng lint
+npm run test:rollo-site
+npm run test:sso
 ```
 
 ## Available Scripts
-- `npm start` - Start development server
-- `npm run build` - Build for production
-- `npm run watch` - Build and watch for changes
-- `npm test` - Run unit tests
-- `npm run serve` - Start dev server with external access
 
-## Security Features
-This project implements several security best practices:
+From the root directory:
 
-### Content Security Policy (CSP)
-- Restrictive CSP headers in `index.html`
-- Protection against XSS attacks
-- Limited script and style sources
+### Installation Scripts
+- `npm run install:all` - Install dependencies for all apps
+- `npm run install:rollo-site` - Install dependencies for main website
+- `npm run install:sso` - Install dependencies for SSO service
 
-### HTTP Security Headers
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `X-XSS-Protection: 1; mode=block`
-- `Referrer-Policy: strict-origin-when-cross-origin`
+### Development Scripts
+- `npm run dev` or `npm start` - Start main website development server
+- `npm run dev:rollo-site` - Start main website development server
+- `npm run dev:sso` - Start SSO service development server
 
-### Development Security
-- TypeScript for type safety
-- Angular's built-in security features
-- Secure routing configuration
+### Build Scripts
+- `npm run build:all` - Build all applications for production
+- `npm run build:rollo-site` - Build main website for production
+- `npm run build:sso` - Build SSO service for production
 
-## Folder Structure Details
+### Test Scripts
+- `npm run test:all` - Run tests for all applications
+- `npm run test:rollo-site` - Run tests for main website
+- `npm run test:sso` - Run tests for SSO service
 
-### `/src/app/pages/`
-Contains all page components:
-- **Home**: Landing page with hero section and features
-- **About**: Information about the platform and technology
-- **Portfolio**: Showcase area for projects (placeholder)
-- **Contact**: Contact information and forms (placeholder)
+## Architecture Benefits
 
-### `/src/app/`
-Main application files:
-- `app.ts` - Root component with navigation and layout
-- `app.routes.ts` - Routing configuration
-- `app.config.ts` - Application configuration
-- `app.scss` - Navigation and layout styles
+### Security Isolation
+- **SSO Service**: Completely isolated for maximum security
+- **Separate Deployments**: Each app can be deployed independently
+- **Environment Isolation**: Different configurations per app
 
-### `/src/`
-- `index.html` - Main HTML template with security headers
-- `main.ts` - Application bootstrap
-- `styles.scss` - Global styles and utilities
+### Code Sharing
+- **Shared Styles**: Consistent design across all sites
+- **Reusable Components**: Future shared components package
+- **Common Utilities**: Shared business logic and helpers
 
-## Styling Architecture
-- **Global Styles**: Base styles, typography, utilities in `styles.scss`
-- **Component Styles**: Scoped styles for each component
-- **SCSS Features**: Variables, mixins, and nested selectors
-- **Responsive Design**: Mobile-first approach with breakpoints
+### Scalability
+- **Multi-Site Ready**: Architecture supports multiple subdomains
+- **Independent Scaling**: Scale each service based on demand
+- **Modular Development**: Teams can work on different apps independently
 
-## Deployment Considerations
-1. **Build Optimization**: Production builds are optimized and minified
-2. **Security**: CSP headers and security meta tags included
-3. **SEO**: Proper meta tags and semantic HTML structure
-4. **Performance**: Tree-shaking and lazy loading ready
+## Future Roadmap
+
+- **Additional Sites**: Support for multiple subdomain sites
+- **Shared Components**: React/Angular component library
+- **API Gateway**: Centralized API management
+- **Monitoring**: Centralized logging and monitoring
+- **CI/CD**: Automated testing and deployment pipelines
 
 ## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+
+Each application has its own development workflow. See individual README files in each app directory for specific contribution guidelines.
 
 ## Browser Support
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+
+Modern browsers supporting ES2020+ features. See individual app documentation for specific browser requirements.
 
 ## License
-ISC License - see package.json for details
+
+ISC License - see package.json files for details
 
 ## Version History
-- v1.0.0 - Initial Angular project setup with security features and basic pages
+
+- **1.0.0** - Initial monorepo structure with rollo-site and SSO service

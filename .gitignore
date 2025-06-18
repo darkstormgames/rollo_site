@@ -204,16 +204,22 @@ FakesAssemblies/
 /tmp
 /out-tsc
 /bazel-out
+apps/*/dist
+apps/*/tmp
+apps/*/out-tsc
 
 # Node
 npm-debug.log
 yarn-error.log
 
-# Backend specific
-backend/node_modules
-backend/.env
-backend/logs
-backend/uploads
+# App specific
+apps/*/node_modules
+apps/sso/.env
+apps/sso/logs
+apps/sso/uploads
+
+# Shared packages
+packages/*/node_modules
 
 # IDEs and editors
 .idea/
