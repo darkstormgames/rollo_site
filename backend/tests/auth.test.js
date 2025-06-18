@@ -1,6 +1,29 @@
 const request = require('supertest');
+
+// Mock database for testing
+jest.mock('../src/models', () => {
+    const mockSequelize = {
+        authenticate: jest.fn().mockResolvedValue(),
+        sync: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+    };
+    
+    const mockUser = {
+        findOne: jest.fn(),
+        create: jest.fn(),
+        destroy: jest.fn().mockResolvedValue()
+    };
+    
+    return {
+        sequelize: mockSequelize,
+        User: mockUser,
+        RefreshToken: { create: jest.fn(), update: jest.fn(), findOne: jest.fn() },
+        UserSession: { create: jest.fn() }
+    };
+});
+
 const app = require('../server');
-const db = require('../src/config/database');
+const { sequelize, User } = require('../src/models');
 
 describe('Auth API', () => {
     let testUser = {
@@ -11,14 +34,34 @@ describe('Auth API', () => {
         lastName: 'User'
     };
 
+    beforeAll(async () => {
+        // Ensure database is ready
+        await sequelize.authenticate();
+        await sequelize.sync({ force: true });
+    });
+
+    afterEach(async () => {
+        // Clean up test data after each test
+        await User.destroy({ where: { email: testUser.email } });
+    });
+
     afterAll(async () => {
-        // Clean up test data
-        await db.query('DELETE FROM users WHERE email = ?', [testUser.email]);
-        await db.close();
+        await sequelize.close();
     });
 
     describe('POST /api/auth/register', () => {
         it('should register a new user with valid data', async () => {
+            // Mock user creation
+            User.findOne.mockResolvedValue(null); // User doesn't exist
+            User.create.mockResolvedValue({
+                id: 1,
+                username: testUser.username,
+                email: testUser.email,
+                first_name: testUser.firstName,
+                last_name: testUser.lastName,
+                access_level: 'basic'
+            });
+
             const response = await request(app)
                 .post('/api/auth/register')
                 .send(testUser)
@@ -27,10 +70,14 @@ describe('Auth API', () => {
             expect(response.body.message).toBe('User registered successfully');
             expect(response.body.user.username).toBe(testUser.username);
             expect(response.body.user.email).toBe(testUser.email);
+            expect(response.body.user.accessLevel).toBe('basic');
             expect(response.body.user.password_hash).toBeUndefined();
         });
 
         it('should reject duplicate username', async () => {
+            // Mock existing user
+            User.findOne.mockResolvedValue({ id: 1, username: testUser.username });
+
             await request(app)
                 .post('/api/auth/register')
                 .send(testUser)

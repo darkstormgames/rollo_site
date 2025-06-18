@@ -6,9 +6,11 @@ Secure Single Sign-On backend service for Rollo Site and other applications.
 
 - 🔐 Secure JWT authentication with automatic secret rotation
 - 🛡️ Password hashing using bcrypt with configurable salt rounds
-- 🗄️ MySQL database with optimized schema
+- 🗄️ Sequelize ORM with MySQL database support
 - 🔄 Refresh token mechanism for enhanced security
-- 🌐 Multi-site SSO support
+- 🌐 Multi-site SSO support with access level controls
+- 👑 User access levels (admin, premium, standard, basic)
+- 🔐 Site-specific access restrictions based on user level
 - 📊 Session tracking and management
 - 🚀 Express.js with security middleware
 - ✅ Comprehensive input validation
@@ -58,10 +60,47 @@ npm start
 - `POST /api/auth/login` - User login
 - `POST /api/auth/refresh` - Refresh access token
 - `POST /api/auth/logout` - User logout
+- `GET /api/auth/sites` - Get accessible sites for user
+
+### Admin Management
+
+- `PUT /api/auth/admin/users/:userId/access-level` - Update user access level (admin only)
+- `PUT /api/auth/admin/sites/:siteId/access-level` - Update site access level requirement (admin only)
+- `GET /api/auth/admin/users` - List users by access level (admin only)
 
 ### Health Check
 
 - `GET /health` - Server health status
+
+## Access Level System
+
+The system implements a hierarchical access level system for controlling site access:
+
+### Access Levels (in order of priority)
+
+1. **basic** - Entry level access
+2. **standard** - Standard user access
+3. **premium** - Premium user access
+4. **admin** - Administrator access (full system control)
+
+### How It Works
+
+- **User Access Level**: Each user is assigned an access level when registered (defaults to 'basic')
+- **Site Requirements**: Each site can specify a minimum access level requirement
+- **Access Control**: Users can only access sites where their access level meets or exceeds the site's requirement
+
+### Examples
+
+- A user with 'premium' access can access sites requiring 'basic', 'standard', or 'premium' levels
+- A user with 'basic' access can only access sites requiring 'basic' level
+- Admin users can access all sites and manage other users' access levels
+
+### Admin Functions
+
+Only users with 'admin' access level can:
+- Modify other users' access levels
+- Change site access level requirements
+- View all users and their access levels
 
 ## Security Features
 
@@ -90,14 +129,14 @@ npm start
 
 ## Database Schema
 
-The system uses a comprehensive MySQL schema with the following tables:
+The system uses Sequelize ORM with a comprehensive MySQL schema with the following tables:
 
-- `users` - User accounts with secure password storage
+- `users` - User accounts with secure password storage and access levels
 - `refresh_tokens` - JWT refresh token management
 - `jwt_secrets` - Secret key rotation tracking
 - `user_sessions` - Session management and tracking
-- `sso_sites` - Multi-site configuration
-- `user_site_permissions` - Role-based access control
+- `sso_sites` - Multi-site configuration with access level requirements
+- `user_site_permissions` - Role-based access control per site
 
 ## Testing
 
@@ -118,12 +157,13 @@ Key environment variables:
 
 ## Multi-Site SSO
 
-The system supports multiple sites/applications:
+The system supports multiple sites/applications with access level controls:
 
-1. Register sites in the `sso_sites` table
-2. Configure user permissions per site
+1. Register sites in the `sso_sites` table with minimum access level requirements
+2. Configure user permissions per site (optional, beyond access levels)
 3. Use site-specific API keys for authentication
 4. Validate tokens across all registered sites
+5. Automatic access control based on user access levels vs site requirements
 
 ## Production Deployment
 

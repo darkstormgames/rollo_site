@@ -1,9 +1,10 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const db = require('../config/database');
+const { User, RefreshToken, UserSession } = require('../models');
 const SecurityUtils = require('../utils/security');
 const JWTManager = require('../utils/jwt-manager');
-const { authenticateRefreshToken } = require('../middleware/auth');
+const AccessLevelService = require('../services/AccessLevelService');
+const { authenticateRefreshToken, authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -54,12 +55,16 @@ router.post('/register', registerValidation, async (req, res) => {
         const { username, email, password, firstName, lastName } = req.body;
 
         // Check if user already exists
-        const existingUser = await db.query(
-            'SELECT id FROM users WHERE username = ? OR email = ?',
-            [username, email]
-        );
+        const existingUser = await User.findOne({
+            where: {
+                [require('sequelize').Op.or]: [
+                    { username },
+                    { email }
+                ]
+            }
+        });
 
-        if (existingUser.length > 0) {
+        if (existingUser) {
             return res.status(409).json({
                 error: 'User already exists with this username or email'
             });
@@ -69,21 +74,24 @@ router.post('/register', registerValidation, async (req, res) => {
         const passwordHash = await SecurityUtils.hashPassword(password);
 
         // Create user
-        const result = await db.query(`
-            INSERT INTO users (username, email, password_hash, first_name, last_name)
-            VALUES (?, ?, ?, ?, ?)
-        `, [username, email, passwordHash, firstName || null, lastName || null]);
-
-        const userId = result.insertId;
+        const user = await User.create({
+            username,
+            email,
+            password_hash: passwordHash,
+            first_name: firstName || null,
+            last_name: lastName || null,
+            access_level: 'basic' // Default access level
+        });
 
         res.status(201).json({
             message: 'User registered successfully',
             user: {
-                id: userId,
-                username,
-                email,
-                firstName: firstName || null,
-                lastName: lastName || null
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                accessLevel: user.access_level
             }
         });
 
@@ -110,18 +118,25 @@ router.post('/login', loginValidation, async (req, res) => {
         const { username, password } = req.body;
 
         // Find user by username or email
-        const users = await db.query(
-            'SELECT id, username, email, password_hash, first_name, last_name, is_active FROM users WHERE (username = ? OR email = ?) AND is_active = TRUE',
-            [username, username]
-        );
+        const user = await User.findOne({
+            where: {
+                [require('sequelize').Op.and]: [
+                    {
+                        [require('sequelize').Op.or]: [
+                            { username },
+                            { email: username }
+                        ]
+                    },
+                    { is_active: true }
+                ]
+            }
+        });
 
-        if (users.length === 0) {
+        if (!user) {
             return res.status(401).json({
                 error: 'Invalid credentials'
             });
         }
-
-        const user = users[0];
 
         // Verify password
         const isValidPassword = await SecurityUtils.verifyPassword(password, user.password_hash);
@@ -135,7 +150,8 @@ router.post('/login', loginValidation, async (req, res) => {
         const tokenPayload = {
             userId: user.id,
             username: user.username,
-            email: user.email
+            email: user.email,
+            accessLevel: user.access_level
         };
 
         const accessToken = await JWTManager.generateAccessToken(tokenPayload);
@@ -145,25 +161,26 @@ router.post('/login', loginValidation, async (req, res) => {
         const refreshTokenHash = SecurityUtils.hashSensitiveData(refreshToken);
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-        await db.query(`
-            INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-            VALUES (?, ?, ?)
-        `, [user.id, refreshTokenHash, expiresAt]);
+        await RefreshToken.create({
+            user_id: user.id,
+            token_hash: refreshTokenHash,
+            expires_at: expiresAt
+        });
 
         // Create session record
         const sessionId = SecurityUtils.generateSecureRandom(32);
         const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-        await db.query(`
-            INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, expires_at)
-            VALUES (?, ?, ?, ?, ?)
-        `, [
-            user.id,
-            sessionId,
-            req.ip || req.connection.remoteAddress,
-            req.get('User-Agent') || '',
-            sessionExpiresAt
-        ]);
+        await UserSession.create({
+            user_id: user.id,
+            session_id: sessionId,
+            ip_address: req.ip || req.connection.remoteAddress,
+            user_agent: req.get('User-Agent') || '',
+            expires_at: sessionExpiresAt
+        });
+
+        // Get accessible sites
+        const accessibleSites = await AccessLevelService.getAccessibleSites(user.id);
 
         res.json({
             message: 'Login successful',
@@ -174,8 +191,15 @@ router.post('/login', loginValidation, async (req, res) => {
                 username: user.username,
                 email: user.email,
                 firstName: user.first_name,
-                lastName: user.last_name
-            }
+                lastName: user.last_name,
+                accessLevel: user.access_level
+            },
+            accessibleSites: accessibleSites.map(site => ({
+                id: site.id,
+                name: site.site_name,
+                url: site.site_url,
+                requiredAccessLevel: site.access_level_required
+            }))
         });
 
     } catch (error) {
@@ -223,11 +247,16 @@ router.post('/logout', async (req, res) => {
 
         if (refreshToken) {
             // Revoke refresh token
-            await db.query(`
-                UPDATE refresh_tokens 
-                SET revoked_at = NOW() 
-                WHERE token_hash = SHA2(?, 256) AND revoked_at IS NULL
-            `, [refreshToken]);
+            const refreshTokenHash = SecurityUtils.hashSensitiveData(refreshToken);
+            await RefreshToken.update(
+                { revoked_at: new Date() },
+                { 
+                    where: { 
+                        token_hash: refreshTokenHash,
+                        revoked_at: null 
+                    } 
+                }
+            );
         }
 
         res.json({
@@ -239,6 +268,121 @@ router.post('/logout', async (req, res) => {
         res.status(500).json({
             error: 'Logout failed',
             details: 'Internal server error'
+        });
+    }
+});
+
+// Get user's accessible sites
+router.get('/sites', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const accessibleSites = await AccessLevelService.getAccessibleSites(userId);
+
+        res.json({
+            sites: accessibleSites.map(site => ({
+                id: site.id,
+                name: site.site_name,
+                url: site.site_url,
+                requiredAccessLevel: site.access_level_required
+            }))
+        });
+
+    } catch (error) {
+        console.error('Get sites error:', error);
+        res.status(500).json({
+            error: 'Failed to get accessible sites',
+            details: 'Internal server error'
+        });
+    }
+});
+
+// Admin routes for access level management
+router.put('/admin/users/:userId/access-level', authenticateToken, async (req, res) => {
+    try {
+        const adminUserId = req.user.id;
+        const { userId } = req.params;
+        const { accessLevel } = req.body;
+
+        const updatedUser = await AccessLevelService.updateUserAccessLevel(
+            adminUserId, 
+            userId, 
+            accessLevel
+        );
+
+        res.json({
+            message: 'User access level updated successfully',
+            user: {
+                id: updatedUser.id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+                accessLevel: updatedUser.access_level
+            }
+        });
+
+    } catch (error) {
+        console.error('Update user access level error:', error);
+        res.status(error.message.includes('Insufficient permissions') ? 403 : 500).json({
+            error: error.message,
+            details: error.message.includes('Insufficient permissions') ? 'Admin access required' : 'Internal server error'
+        });
+    }
+});
+
+router.put('/admin/sites/:siteId/access-level', authenticateToken, async (req, res) => {
+    try {
+        const adminUserId = req.user.id;
+        const { siteId } = req.params;
+        const { requiredAccessLevel } = req.body;
+
+        const updatedSite = await AccessLevelService.updateSiteAccessLevel(
+            adminUserId, 
+            siteId, 
+            requiredAccessLevel
+        );
+
+        res.json({
+            message: 'Site access level updated successfully',
+            site: {
+                id: updatedSite.id,
+                name: updatedSite.site_name,
+                url: updatedSite.site_url,
+                requiredAccessLevel: updatedSite.access_level_required
+            }
+        });
+
+    } catch (error) {
+        console.error('Update site access level error:', error);
+        res.status(error.message.includes('Insufficient permissions') ? 403 : 500).json({
+            error: error.message,
+            details: error.message.includes('Insufficient permissions') ? 'Admin access required' : 'Internal server error'
+        });
+    }
+});
+
+router.get('/admin/users', authenticateToken, async (req, res) => {
+    try {
+        const adminUserId = req.user.id;
+        const { accessLevel } = req.query;
+
+        const users = await AccessLevelService.getUsersByAccessLevel(adminUserId, accessLevel);
+
+        res.json({
+            users: users.map(user => ({
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                accessLevel: user.access_level,
+                createdAt: user.created_at
+            }))
+        });
+
+    } catch (error) {
+        console.error('Get users error:', error);
+        res.status(error.message.includes('Insufficient permissions') ? 403 : 500).json({
+            error: error.message,
+            details: error.message.includes('Insufficient permissions') ? 'Admin access required' : 'Internal server error'
         });
     }
 });

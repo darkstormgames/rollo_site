@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-const db = require('./src/config/database');
+const { sequelize } = require('./src/models');
 const JWTManager = require('./src/utils/jwt-manager');
 const authRoutes = require('./src/routes/auth');
 
@@ -90,13 +90,19 @@ app.use((err, req, res, next) => {
 // Initialize application
 async function startServer() {
     try {
+        // Test database connection and sync models
+        await sequelize.authenticate();
+        console.log('Database connected successfully');
+        
+        // Sync database models (be careful in production)
+        if (process.env.NODE_ENV !== 'production') {
+            await sequelize.sync({ alter: true });
+            console.log('Database models synchronized');
+        }
+        
         // Initialize JWT secrets
         await JWTManager.initializeSecrets();
         console.log('JWT secrets initialized');
-        
-        // Test database connection
-        await db.query('SELECT 1');
-        console.log('Database connected successfully');
         
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, () => {
@@ -114,13 +120,13 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
     console.log('\nReceived SIGINT, shutting down gracefully...');
-    await db.close();
+    await sequelize.close();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     console.log('\nReceived SIGTERM, shutting down gracefully...');
-    await db.close();
+    await sequelize.close();
     process.exit(0);
 });
 

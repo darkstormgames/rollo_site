@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const { JwtSecret, sequelize } = require('../models');
 const SecurityUtils = require('../utils/security');
 
 class JWTManager {
@@ -11,9 +11,9 @@ class JWTManager {
     static async initializeSecrets() {
         try {
             // Check if we have active secrets
-            const existingSecrets = await db.query(
-                'SELECT * FROM jwt_secrets WHERE is_active = TRUE'
-            );
+            const existingSecrets = await JwtSecret.findAll({
+                where: { is_active: true }
+            });
 
             if (existingSecrets.length === 0) {
                 // Generate initial secrets
@@ -38,21 +38,38 @@ class JWTManager {
         const accessSecretHash = SecurityUtils.hashSensitiveData(accessSecret);
         const refreshSecretHash = SecurityUtils.hashSensitiveData(refreshSecret);
 
-        await db.transaction(async (connection) => {
+        const transaction = await sequelize.transaction();
+        try {
             // Deactivate old secrets
-            await connection.execute(
-                'UPDATE jwt_secrets SET is_active = FALSE WHERE is_active = TRUE'
+            await JwtSecret.update(
+                { is_active: false },
+                { 
+                    where: { is_active: true },
+                    transaction
+                }
             );
 
             // Insert new secrets
-            await connection.execute(`
-                INSERT INTO jwt_secrets (key_id, secret_hash, type, is_active) 
-                VALUES (?, ?, ?, TRUE), (?, ?, ?, TRUE)
-            `, [
-                accessKeyId, accessSecretHash, this.ACCESS_TOKEN_TYPE,
-                refreshKeyId, refreshSecretHash, this.REFRESH_TOKEN_TYPE
-            ]);
-        });
+            await JwtSecret.bulkCreate([
+                {
+                    key_id: accessKeyId,
+                    secret_hash: accessSecretHash,
+                    type: this.ACCESS_TOKEN_TYPE,
+                    is_active: true
+                },
+                {
+                    key_id: refreshKeyId,
+                    secret_hash: refreshSecretHash,
+                    type: this.REFRESH_TOKEN_TYPE,
+                    is_active: true
+                }
+            ], { transaction });
+
+            await transaction.commit();
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
 
         // Store in memory for immediate use (in production, use secure key management)
         this.currentSecrets = {
@@ -77,9 +94,10 @@ class JWTManager {
      * Load active secrets from database
      */
     static async loadActiveSecrets() {
-        const secrets = await db.query(
-            'SELECT key_id, type FROM jwt_secrets WHERE is_active = TRUE'
-        );
+        const secrets = await JwtSecret.findAll({
+            where: { is_active: true },
+            attributes: ['key_id', 'type']
+        });
 
         this.currentSecrets = {};
         for (const secret of secrets) {

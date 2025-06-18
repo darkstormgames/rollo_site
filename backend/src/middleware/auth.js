@@ -1,5 +1,6 @@
 const JWTManager = require('../utils/jwt-manager');
-const db = require('../config/database');
+const SecurityUtils = require('../utils/security');
+const { User, RefreshToken } = require('../models');
 
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -16,19 +17,27 @@ const authenticateToken = async (req, res, next) => {
         const decoded = await JWTManager.verifyAccessToken(token);
         
         // Verify user still exists and is active
-        const user = await db.query(
-            'SELECT id, username, email, is_active FROM users WHERE id = ? AND is_active = TRUE',
-            [decoded.userId]
-        );
+        const user = await User.findOne({
+            where: {
+                id: decoded.userId,
+                is_active: true
+            },
+            attributes: ['id', 'username', 'email', 'access_level', 'is_active']
+        });
 
-        if (user.length === 0) {
+        if (!user) {
             return res.status(401).json({ 
                 error: 'User not found or inactive',
                 code: 'USER_INACTIVE'
             });
         }
 
-        req.user = user[0];
+        req.user = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            access_level: user.access_level
+        };
         req.tokenData = decoded;
         next();
     } catch (error) {
@@ -53,22 +62,28 @@ const authenticateRefreshToken = async (req, res, next) => {
         const decoded = await JWTManager.verifyRefreshToken(refreshToken);
         
         // Check if refresh token exists and is not revoked
-        const tokenRecord = await db.query(`
-            SELECT rt.*, u.username, u.email, u.is_active 
-            FROM refresh_tokens rt 
-            JOIN users u ON rt.user_id = u.id
-            WHERE rt.user_id = ? AND rt.token_hash = SHA2(?, 256) 
-            AND rt.expires_at > NOW() AND rt.revoked_at IS NULL
-        `, [decoded.userId, refreshToken]);
+        const tokenHash = SecurityUtils.hashSensitiveData(refreshToken);
+        const tokenRecord = await RefreshToken.findOne({
+            where: {
+                user_id: decoded.userId,
+                token_hash: tokenHash,
+                revoked_at: null
+            },
+            include: [{
+                model: User,
+                as: 'user',
+                attributes: ['id', 'username', 'email', 'access_level', 'is_active']
+            }]
+        });
 
-        if (tokenRecord.length === 0) {
+        if (!tokenRecord || new Date() > tokenRecord.expires_at) {
             return res.status(403).json({ 
                 error: 'Invalid or expired refresh token',
                 code: 'REFRESH_TOKEN_INVALID'
             });
         }
 
-        if (!tokenRecord[0].is_active) {
+        if (!tokenRecord.user.is_active) {
             return res.status(401).json({ 
                 error: 'User account is inactive',
                 code: 'USER_INACTIVE'
@@ -76,9 +91,10 @@ const authenticateRefreshToken = async (req, res, next) => {
         }
 
         req.user = {
-            id: tokenRecord[0].user_id,
-            username: tokenRecord[0].username,
-            email: tokenRecord[0].email
+            id: tokenRecord.user.id,
+            username: tokenRecord.user.username,
+            email: tokenRecord.user.email,
+            access_level: tokenRecord.user.access_level
         };
         req.refreshTokenData = decoded;
         next();
@@ -100,13 +116,21 @@ const optionalAuth = async (req, res, next) => {
 
     try {
         const decoded = await JWTManager.verifyAccessToken(token);
-        const user = await db.query(
-            'SELECT id, username, email FROM users WHERE id = ? AND is_active = TRUE',
-            [decoded.userId]
-        );
+        const user = await User.findOne({
+            where: {
+                id: decoded.userId,
+                is_active: true
+            },
+            attributes: ['id', 'username', 'email', 'access_level']
+        });
 
-        if (user.length > 0) {
-            req.user = user[0];
+        if (user) {
+            req.user = {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                access_level: user.access_level
+            };
             req.tokenData = decoded;
         }
     } catch (error) {

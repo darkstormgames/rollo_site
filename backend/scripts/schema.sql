@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(50),
     last_name VARCHAR(50),
+    access_level ENUM('admin', 'premium', 'standard', 'basic') NOT NULL DEFAULT 'basic',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS sso_sites (
     site_name VARCHAR(100) UNIQUE NOT NULL,
     site_url VARCHAR(255) NOT NULL,
     api_key_hash VARCHAR(255) NOT NULL,
+    access_level_required ENUM('admin', 'premium', 'standard', 'basic') NOT NULL DEFAULT 'basic',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -81,3 +83,4 @@ CREATE TABLE IF NOT EXISTS user_site_permissions (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX idx_users_access_level ON users(access_level);

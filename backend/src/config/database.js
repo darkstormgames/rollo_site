@@ -1,24 +1,17 @@
-const mysql = require('mysql2/promise');
+const { sequelize } = require('../models');
 
+// Legacy wrapper for backward compatibility during transition
 class Database {
     constructor() {
-        this.pool = mysql.createPool({
-            host: process.env.DB_HOST || 'localhost',
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'rollo_sso',
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0,
-            acquireTimeout: 60000,
-            timeout: 60000
-        });
+        this.sequelize = sequelize;
     }
 
     async query(sql, params = []) {
         try {
-            const [rows] = await this.pool.execute(sql, params);
+            const [rows] = await sequelize.query(sql, { 
+                replacements: params,
+                type: sequelize.QueryTypes.SELECT 
+            });
             return rows;
         } catch (error) {
             console.error('Database query error:', error);
@@ -27,23 +20,21 @@ class Database {
     }
 
     async transaction(callback) {
-        const connection = await this.pool.getConnection();
+        const transaction = await sequelize.transaction();
         try {
-            await connection.beginTransaction();
-            const result = await callback(connection);
-            await connection.commit();
+            const result = await callback(transaction);
+            await transaction.commit();
             return result;
         } catch (error) {
-            await connection.rollback();
+            await transaction.rollback();
             throw error;
-        } finally {
-            connection.release();
         }
     }
 
     async close() {
-        await this.pool.end();
+        await sequelize.close();
     }
 }
 
+// For legacy compatibility
 module.exports = new Database();
