@@ -1,0 +1,32 @@
+<!-- Main Navigation -->
+<nav class="navbar">
+  <div class="nav-container">
+    <h1 class="nav-logo">{{ title }}</h1>
+    <ul class="nav-menu">
+      <li class="nav-item">
+        <a routerLink="/" class="nav-link" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
+      </li>
+      <li class="nav-item">
+        <a routerLink="/about" class="nav-link" routerLinkActive="active">About</a>
+      </li>
+      <li class="nav-item">
+        <a routerLink="/portfolio" class="nav-link" routerLinkActive="active">Portfolio</a>
+      </li>
+      <li class="nav-item">
+        <a routerLink="/contact" class="nav-link" routerLinkActive="active">Contact</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Main Content Area -->
+<main class="main-content">
+  <router-outlet></router-outlet>
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-container">
+    <p>&copy; {{ currentYear }} {{ title }}. All rights reserved.</p>
+  </div>
+</footer>
