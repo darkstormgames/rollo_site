@@ -1,0 +1,59 @@
+<div class="login-container">
+  <div class="container">
+    <div class="login-form-wrapper">
+      <div class="login-header">
+        <h1>Sign In</h1>
+        <p>Access your Rollo Site account</p>
+      </div>
+
+      <form (ngSubmit)="onSubmit()" #loginForm="ngForm" class="login-form">
+        <div class="form-group">
+          <label for="username">Username or Email</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            [(ngModel)]="credentials.username"
+            required
+            autocomplete="username"
+            [disabled]="isLoading"
+            class="form-control"
+            placeholder="Enter your username or email"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            [(ngModel)]="credentials.password"
+            required
+            autocomplete="current-password"
+            [disabled]="isLoading"
+            class="form-control"
+            placeholder="Enter your password"
+          >
+        </div>
+
+        <div class="error-message" *ngIf="error">
+          {{ error }}
+        </div>
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="isLoading || !loginForm.valid"
+        >
+          <span *ngIf="isLoading" class="loading-spinner"></span>
+          {{ isLoading ? 'Signing In...' : 'Sign In' }}
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p>Don't have an account? <a routerLink="/register">Sign up here</a></p>
+      </div>
+    </div>
+  </div>
+</div>

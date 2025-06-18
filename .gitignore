@@ -209,6 +209,12 @@ FakesAssemblies/
 npm-debug.log
 yarn-error.log
 
+# Backend specific
+backend/node_modules
+backend/.env
+backend/logs
+backend/uploads
+
 # IDEs and editors
 .idea/
 .project

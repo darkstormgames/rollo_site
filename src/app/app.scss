@@ -54,6 +54,51 @@
   }
 }
 
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  .auth-link {
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+
+    &.btn-auth {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      }
+    }
+  }
+
+  .user-welcome {
+    color: #333;
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  .logout-btn {
+    background: none;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+
+    &:hover {
+      background-color: #dc3545;
+      color: white;
+    }
+  }
+}
+
 // Main content styles
 .main-content {
   min-height: calc(100vh - 120px);
@@ -84,6 +129,11 @@
 
   .nav-menu {
     gap: 1rem;
+  }
+
+  .nav-auth {
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .main-content {
