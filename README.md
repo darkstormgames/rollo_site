@@ -12,7 +12,8 @@ The monorepo is structured to support multiple websites served over subdomains w
 rollo-monorepo/
 ├── apps/                     # Individual applications
 │   ├── rollo-site/          # Main website (Angular)
-│   └── sso/                 # SSO authentication service (Express.js)
+│   ├── sso/                 # SSO authentication service (Express.js)
+│   └── vm-service/          # VM management service (Python/FastAPI)
 ├── packages/                # Shared packages
 │   └── shared-styles/       # Common design system and styles
 ├── .github/                 # GitHub workflows and templates
@@ -36,6 +37,12 @@ rollo-monorepo/
 - **Features**: JWT authentication, multi-site support, user access levels
 - **Documentation**: See `apps/sso/README.md`
 
+### VM Service (`apps/vm-service/`)
+- **Technology**: Python, FastAPI
+- **Purpose**: Virtual machine management backend service
+- **Features**: REST API, health checks, libvirt integration ready
+- **Documentation**: See `apps/vm-service/README.md`
+
 ## Shared Packages
 
 ### Shared Styles (`packages/shared-styles/`)
@@ -48,6 +55,7 @@ rollo-monorepo/
 ### Prerequisites
 - Node.js 20+
 - npm 10+
+- Python 3.12+ (for VM service)
 - MySQL 5.7+ (for SSO service)
 - Angular CLI 20+ (for frontend development)
 
@@ -62,6 +70,7 @@ Or install for specific apps:
 ```bash
 npm run install:rollo-site
 npm run install:sso
+npm run install:vm-service
 ```
 
 ### Development
@@ -80,6 +89,11 @@ Start the SSO service:
 npm run dev:sso
 ```
 
+Start the VM management service:
+```bash
+npm run dev:vm-service
+```
+
 ### Building
 
 Build all applications:
@@ -91,6 +105,7 @@ Build specific applications:
 ```bash
 npm run build:rollo-site
 npm run build:sso
+npm run build:vm-service
 ```
 
 ### Testing
@@ -104,6 +119,7 @@ Run tests for specific applications:
 ```bash
 npm run test:rollo-site
 npm run test:sso
+npm run test:vm-service
 ```
 
 ## Available Scripts

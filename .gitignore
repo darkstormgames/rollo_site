@@ -223,6 +223,17 @@ apps/sso/.env
 apps/sso/logs
 apps/sso/uploads
 
+# Python VM Service specific
+apps/vm-service/venv/
+apps/vm-service/.env
+apps/vm-service/__pycache__/
+apps/vm-service/src/**/__pycache__/
+apps/vm-service/**/*.pyc
+apps/vm-service/**/*.pyo
+apps/vm-service/**/*.egg-info/
+apps/vm-service/logs/
+apps/vm-service/.pytest_cache/
+
 # IDEs and editors
 .idea/
 .project
