@@ -1,0 +1,14 @@
+{
+  "name": "@rollo/shared-styles",
+  "version": "1.0.0",
+  "description": "Shared styles and design system for Rollo applications",
+  "main": "index.scss",
+  "files": [
+    "*.scss",
+    "components/",
+    "utilities/",
+    "themes/"
+  ],
+  "keywords": ["scss", "styles", "design-system"],
+  "license": "ISC"
+}

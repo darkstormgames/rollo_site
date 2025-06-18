@@ -140,6 +140,11 @@ publish/
 **/packages/*
 # except build/, which is used as an MSBuild target.
 !**/packages/build/
+# Allow our shared packages in monorepo
+!packages/
+!packages/**/*
+# But ignore node_modules in packages
+packages/*/node_modules
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/packages/repositories.config
 
@@ -217,9 +222,6 @@ apps/*/node_modules
 apps/sso/.env
 apps/sso/logs
 apps/sso/uploads
-
-# Shared packages
-packages/*/node_modules
 
 # IDEs and editors
 .idea/
