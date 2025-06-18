@@ -140,6 +140,11 @@ publish/
 **/packages/*
 # except build/, which is used as an MSBuild target.
 !**/packages/build/
+# Allow our shared packages in monorepo
+!packages/
+!packages/**/*
+# But ignore node_modules in packages
+packages/*/node_modules
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/packages/repositories.config
 
@@ -204,16 +209,19 @@ FakesAssemblies/
 /tmp
 /out-tsc
 /bazel-out
+apps/*/dist
+apps/*/tmp
+apps/*/out-tsc
 
 # Node
 npm-debug.log
 yarn-error.log
 
-# Backend specific
-backend/node_modules
-backend/.env
-backend/logs
-backend/uploads
+# App specific
+apps/*/node_modules
+apps/sso/.env
+apps/sso/logs
+apps/sso/uploads
 
 # IDEs and editors
 .idea/

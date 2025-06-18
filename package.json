@@ -1,49 +1,39 @@
 {
-  "name": "rollo_site",
+  "name": "rollo-monorepo",
   "version": "1.0.0",
-  "description": "Private Website project for portfolio and management stuff",
-  "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "serve": "ng serve --host 0.0.0.0 --port 4200"
-  },
+  "description": "Rollo monorepo containing multiple applications and shared packages",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:rollo-site": "cd apps/rollo-site && npm start",
+    "dev:sso": "cd apps/sso && npm run dev",
+    "build:rollo-site": "cd apps/rollo-site && npm run build",
+    "build:sso": "cd apps/sso && npm run build",
+    "test:rollo-site": "cd apps/rollo-site && npm test",
+    "test:sso": "cd apps/sso && npm test",
+    "install:all": "npm install && npm run install:rollo-site && npm run install:sso",
+    "install:rollo-site": "cd apps/rollo-site && npm install",
+    "install:sso": "cd apps/sso && npm install",
+    "build:all": "npm run build:rollo-site && npm run build:sso",
+    "test:all": "npm run test:rollo-site && npm run test:sso",
+    "dev": "npm run dev:rollo-site",
+    "start": "npm run dev:rollo-site"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/darkstormgames/rollo_site.git"
   },
-  "keywords": ["angular", "website", "portfolio"],
+  "keywords": ["monorepo", "angular", "express", "sso", "website"],
   "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/darkstormgames/rollo_site/issues"
   },
   "homepage": "https://github.com/darkstormgames/rollo_site#readme",
-  "dependencies": {
-    "@angular/common": "^20.0.0",
-    "@angular/compiler": "^20.0.0",
-    "@angular/core": "^20.0.0",
-    "@angular/forms": "^20.0.0",
-    "@angular/platform-browser": "^20.0.0",
-    "@angular/router": "^20.0.0",
-    "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.15.0"
-  },
   "devDependencies": {
-    "@angular/build": "^20.0.3",
-    "@angular/cli": "^20.0.3",
-    "@angular/compiler-cli": "^20.0.0",
-    "@types/jasmine": "~5.1.0",
-    "jasmine-core": "~5.7.0",
-    "karma": "~6.4.0",
-    "karma-chrome-launcher": "~3.2.0",
-    "karma-coverage": "~2.2.0",
-    "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.8.2"
+    "concurrently": "^8.2.2"
   }
 }
