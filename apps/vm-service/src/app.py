@@ -12,6 +12,7 @@ from api.health import create_health_router
 from api.auth import router as auth_router
 from api.example import router as example_router
 from api.vm import router as vm_router
+from api.server import router as server_router
 
 # Setup logging
 setup_logging()
@@ -46,6 +47,7 @@ app.include_router(health_router, prefix="/api/v1", tags=["health"])
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 app.include_router(example_router, prefix="/api/example", tags=["examples"])
 app.include_router(vm_router, prefix="/api", tags=["virtual-machines"])
+app.include_router(server_router, prefix="/api", tags=["servers"])
 
 
 @app.on_event("startup")
@@ -81,6 +83,7 @@ async def root():
         "endpoints": {
             "authentication": "/api/auth",
             "virtual_machines": "/api/vms",
+            "servers": "/api/servers",
             "examples": "/api/example"
         },
         "status": "running"
