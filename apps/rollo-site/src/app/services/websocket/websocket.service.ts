@@ -14,7 +14,11 @@ import {
   ServerStatusEvent,
   ServerRegisteredEvent,
   ServerRemovedEvent,
-  ServerMetricsEvent
+  ServerMetricsEvent,
+  ProgressEvent,
+  AlertEvent,
+  ConsoleEvent,
+  WebSocketStats
 } from '../../models/websocket/websocket.model';
 
 @Injectable({
@@ -27,7 +31,9 @@ export class WebSocketService {
     reconnectInterval: 5000,
     maxReconnectAttempts: 10,
     heartbeatInterval: 30000,
-    debug: false
+    debug: false,
+    messageQueueSize: 100,
+    offlineQueueEnabled: true
   };
 
   private connectionStatusSubject = new BehaviorSubject<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
@@ -36,6 +42,7 @@ export class WebSocketService {
 
   private reconnectAttempts = 0;
   private heartbeatTimer: any = null;
+  private messageQueue: WebSocketMessage[] = [];
 
   public connectionStatus$ = this.connectionStatusSubject.asObservable();
   public messages$ = this.messagesSubject.asObservable();
@@ -67,6 +74,9 @@ export class WebSocketService {
           this.reconnectAttempts = 0;
           this.startHeartbeat();
           
+          // Process queued messages
+          this.processMessageQueue();
+          
           // Subscribe to events if provided
           if (subscriptions) {
             this.subscribe(subscriptions);
@@ -79,6 +89,13 @@ export class WebSocketService {
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
             this.log('Received message:', message);
+            
+            // Handle special message types
+            if (message.type === 'pong') {
+              this.log('Received pong response');
+              return;
+            }
+            
             this.messagesSubject.next(message);
           } catch (error) {
             this.log('Error parsing message:', error);
@@ -129,13 +146,15 @@ export class WebSocketService {
    * Subscribe to specific events
    */
   subscribe(options: SubscriptionOptions): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      const message = {
-        type: 'subscribe',
-        data: options
-      };
-      this.socket.send(JSON.stringify(message));
+    const message = {
+      type: 'subscribe',
+      data: options
+    };
+    
+    if (this.sendMessage(message)) {
       this.log('Subscribed to events:', options);
+    } else {
+      this.log('Subscription queued:', options);
     }
   }
 
@@ -143,13 +162,15 @@ export class WebSocketService {
    * Unsubscribe from specific events
    */
   unsubscribe(options: SubscriptionOptions): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      const message = {
-        type: 'unsubscribe',
-        data: options
-      };
-      this.socket.send(JSON.stringify(message));
+    const message = {
+      type: 'unsubscribe',
+      data: options
+    };
+    
+    if (this.sendMessage(message)) {
       this.log('Unsubscribed from events:', options);
+    } else {
+      this.log('Unsubscription queued:', options);
     }
   }
 
@@ -221,6 +242,34 @@ export class WebSocketService {
   }
 
   /**
+   * Get progress update events
+   */
+  getProgressEvents(): Observable<ProgressEvent> {
+    return this.getMessagesByType<ProgressEvent>(WebSocketEventType.PROGRESS);
+  }
+
+  /**
+   * Get alert events
+   */
+  getAlertEvents(): Observable<AlertEvent> {
+    return this.getMessagesByType<AlertEvent>(WebSocketEventType.ALERT);
+  }
+
+  /**
+   * Get console output events
+   */
+  getConsoleEvents(): Observable<ConsoleEvent> {
+    return this.getMessagesByType<ConsoleEvent>(WebSocketEventType.CONSOLE_OUTPUT);
+  }
+
+  /**
+   * Get WebSocket statistics events
+   */
+  getStatsEvents(): Observable<WebSocketStats> {
+    return this.getMessagesByType<WebSocketStats>(WebSocketEventType.WEBSOCKET_STATS);
+  }
+
+  /**
    * Check if connected
    */
   isConnected(): boolean {
@@ -232,6 +281,87 @@ export class WebSocketService {
    */
   updateConfig(config: Partial<WebSocketConfig>): void {
     this.config = { ...this.config, ...config };
+  }
+
+  /**
+   * Send message to server with queuing support
+   */
+  sendMessage(message: any): boolean {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      try {
+        this.socket.send(JSON.stringify(message));
+        this.log('Sent message:', message);
+        return true;
+      } catch (error) {
+        this.log('Failed to send message:', error);
+        this.queueMessage(message);
+        return false;
+      }
+    } else {
+      this.queueMessage(message);
+      return false;
+    }
+  }
+
+  /**
+   * Queue message for later delivery when connection is restored
+   */
+  private queueMessage(message: any): void {
+    if (!this.config.offlineQueueEnabled) {
+      return;
+    }
+
+    // Add timestamp to message
+    const queuedMessage: WebSocketMessage = {
+      ...message,
+      timestamp: new Date().toISOString()
+    };
+
+    this.messageQueue.push(queuedMessage);
+    
+    // Limit queue size
+    if (this.messageQueue.length > (this.config.messageQueueSize || 100)) {
+      this.messageQueue.shift(); // Remove oldest message
+    }
+    
+    this.log('Message queued for delivery:', queuedMessage);
+  }
+
+  /**
+   * Process queued messages when connection is restored
+   */
+  private processMessageQueue(): void {
+    if (this.messageQueue.length === 0) {
+      return;
+    }
+
+    this.log(`Processing ${this.messageQueue.length} queued messages`);
+    
+    const messages = [...this.messageQueue];
+    this.messageQueue = [];
+    
+    messages.forEach(message => {
+      this.sendMessage(message);
+    });
+  }
+
+  /**
+   * Get message queue status
+   */
+  getQueueStatus(): { size: number; enabled: boolean } {
+    return {
+      size: this.messageQueue.length,
+      enabled: this.config.offlineQueueEnabled || false
+    };
+  }
+
+  /**
+   * Clear message queue
+   */
+  clearQueue(): void {
+    const size = this.messageQueue.length;
+    this.messageQueue = [];
+    this.log(`Cleared ${size} queued messages`);
   }
 
   /**
@@ -262,8 +392,7 @@ export class WebSocketService {
           type: 'ping',
           timestamp: new Date().toISOString()
         };
-        this.socket.send(JSON.stringify(heartbeat));
-        this.log('Sent heartbeat');
+        this.sendMessage(heartbeat);
       }
     }, this.config.heartbeatInterval);
   }
