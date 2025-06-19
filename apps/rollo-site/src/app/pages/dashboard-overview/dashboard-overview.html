@@ -1,0 +1,178 @@
+<div class="dashboard-overview">
+  <div class="dashboard-header">
+    <h1>VM Management Dashboard</h1>
+    <p class="dashboard-subtitle">Monitor and manage your virtual infrastructure</p>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="loading-spinner"></div>
+    <span>Loading dashboard...</span>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-message" *ngIf="error">
+    <span class="error-icon">⚠️</span>
+    {{ error }}
+    <button (click)="loadDashboardData()" class="btn btn-link">Retry</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div class="dashboard-content" *ngIf="!loading && !error">
+    
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card vm-stats">
+        <div class="stat-header">
+          <h3>Virtual Machines</h3>
+          <span class="stat-icon">💻</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">{{ stats.totalVMs }}</div>
+          <div class="stat-breakdown">
+            <div class="breakdown-item running">
+              <span class="dot"></span>
+              {{ stats.runningVMs }} Running
+            </div>
+            <div class="breakdown-item stopped">
+              <span class="dot"></span>
+              {{ stats.stoppedVMs }} Stopped
+            </div>
+          </div>
+          <div class="stat-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="getUptimePercentage()"></div>
+            </div>
+            <span class="progress-text">{{ getUptimePercentage() }}% Uptime</span>
+          </div>
+        </div>
+        <div class="stat-footer">
+          <a routerLink="/dashboard/vms" class="stat-link">View All VMs →</a>
+        </div>
+      </div>
+
+      <div class="stat-card server-stats">
+        <div class="stat-header">
+          <h3>Servers</h3>
+          <span class="stat-icon">🖥️</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">{{ stats.totalServers }}</div>
+          <div class="stat-breakdown">
+            <div class="breakdown-item online">
+              <span class="dot"></span>
+              {{ stats.onlineServers }} Online
+            </div>
+            <div class="breakdown-item offline">
+              <span class="dot"></span>
+              {{ stats.totalServers - stats.onlineServers }} Offline
+            </div>
+          </div>
+          <div class="stat-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="getServerHealthPercentage()"></div>
+            </div>
+            <span class="progress-text">{{ getServerHealthPercentage() }}% Healthy</span>
+          </div>
+        </div>
+        <div class="stat-footer">
+          <a routerLink="/dashboard/servers" class="stat-link">View All Servers →</a>
+        </div>
+      </div>
+
+      <div class="stat-card resource-stats">
+        <div class="stat-header">
+          <h3>Resources</h3>
+          <span class="stat-icon">📊</span>
+        </div>
+        <div class="stat-body">
+          <div class="resource-grid">
+            <div class="resource-item">
+              <div class="resource-icon">🔥</div>
+              <div class="resource-details">
+                <div class="resource-value">{{ stats.totalCPUs }}</div>
+                <div class="resource-label">CPU Cores</div>
+              </div>
+            </div>
+            <div class="resource-item">
+              <div class="resource-icon">💾</div>
+              <div class="resource-details">
+                <div class="resource-value">{{ stats.totalMemoryGB }} GB</div>
+                <div class="resource-label">Memory</div>
+              </div>
+            </div>
+            <div class="resource-item">
+              <div class="resource-icon">💿</div>
+              <div class="resource-details">
+                <div class="resource-value">{{ stats.totalStorageGB }} GB</div>
+                <div class="resource-label">Storage</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-footer">
+          <a routerLink="/dashboard/monitoring" class="stat-link">View Monitoring →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="action-grid">
+        <a routerLink="/dashboard/vms/create" class="action-card primary">
+          <div class="action-icon">➕</div>
+          <h3>Create VM</h3>
+          <p>Launch a new virtual machine</p>
+        </a>
+        
+        <a routerLink="/dashboard/vms" class="action-card">
+          <div class="action-icon">📋</div>
+          <h3>Manage VMs</h3>
+          <p>View and control all VMs</p>
+        </a>
+        
+        <a routerLink="/dashboard/monitoring" class="action-card">
+          <div class="action-icon">📈</div>
+          <h3>Monitor</h3>
+          <p>View system metrics</p>
+        </a>
+        
+        <a routerLink="/dashboard/settings" class="action-card">
+          <div class="action-icon">⚙️</div>
+          <h3>Settings</h3>
+          <p>Configure system options</p>
+        </a>
+      </div>
+    </div>
+
+    <!-- Recent VMs -->
+    <div class="recent-vms" *ngIf="recentVMs.length > 0">
+      <div class="section-header">
+        <h2>Recent VMs</h2>
+        <a routerLink="/dashboard/vms" class="view-all-link">View All →</a>
+      </div>
+      
+      <div class="vm-list">
+        <div class="vm-item" *ngFor="let vm of recentVMs">
+          <div class="vm-info">
+            <div class="vm-name">
+              <a [routerLink]="['/dashboard/vms', vm.id]">{{ vm.name }}</a>
+            </div>
+            <div class="vm-details">
+              <span class="vm-server">{{ vm.server.hostname }}</span>
+              <span class="vm-resources">
+                {{ vm.resources.cpu_cores }} CPU, {{ vm.resources.memory_mb }}MB RAM
+              </span>
+            </div>
+          </div>
+          <div class="vm-status">
+            <span class="status-badge" [ngClass]="getStatusClass(vm.status)">
+              {{ vm.status }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

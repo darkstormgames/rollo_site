@@ -1,0 +1,228 @@
+<div class="vm-list-container">
+  <div class="vm-list-header">
+    <h1>Virtual Machines</h1>
+    <div class="header-actions">
+      <a routerLink="/dashboard/vms/create" class="btn btn-primary">
+        <span class="btn-icon">➕</span>
+        Create VM
+      </a>
+    </div>
+  </div>
+
+  <!-- Filters and Search -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input 
+        type="text" 
+        placeholder="Search VMs..." 
+        (input)="onSearch($event)"
+        class="search-input"
+      >
+    </div>
+    
+    <div class="filters">
+      <select [(ngModel)]="statusFilter" (change)="onFilterChange()" class="filter-select">
+        <option value="">All Statuses</option>
+        <option [value]="VMStatus.RUNNING">Running</option>
+        <option [value]="VMStatus.STOPPED">Stopped</option>
+        <option [value]="VMStatus.PAUSED">Paused</option>
+        <option [value]="VMStatus.ERROR">Error</option>
+      </select>
+
+      <select [(ngModel)]="osTypeFilter" (change)="onFilterChange()" class="filter-select">
+        <option value="">All OS Types</option>
+        <option [value]="OSType.LINUX">Linux</option>
+        <option [value]="OSType.WINDOWS">Windows</option>
+        <option [value]="OSType.OTHER">Other</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Bulk Actions -->
+  <div class="bulk-actions" *ngIf="selectedVMs.size > 0">
+    <span class="selection-count">{{ selectedVMs.size }} VM(s) selected</span>
+    <div class="bulk-buttons">
+      <button (click)="bulkStart()" class="btn btn-success btn-sm">Start</button>
+      <button (click)="bulkStop()" class="btn btn-warning btn-sm">Stop</button>
+      <button (click)="bulkDelete()" class="btn btn-danger btn-sm">Delete</button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div class="error-message" *ngIf="error">
+    <span class="error-icon">⚠️</span>
+    {{ error }}
+    <button (click)="loadVMs()" class="btn btn-link">Retry</button>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="loading-spinner"></div>
+    <span>Loading VMs...</span>
+  </div>
+
+  <!-- VM Table -->
+  <div class="vm-table-container" *ngIf="!loading">
+    <table class="vm-table">
+      <thead>
+        <tr>
+          <th class="checkbox-col">
+            <input 
+              type="checkbox" 
+              [checked]="selectedVMs.size === vms.length && vms.length > 0"
+              [indeterminate]="selectedVMs.size > 0 && selectedVMs.size < vms.length"
+              (change)="selectAllVMs()"
+            >
+          </th>
+          <th class="sortable" (click)="onSort('name')">
+            Name
+            <span class="sort-indicator" *ngIf="sortBy === 'name'">
+              {{ sortDirection === 'asc' ? '↑' : '↓' }}
+            </span>
+          </th>
+          <th class="sortable" (click)="onSort('status')">
+            Status
+            <span class="sort-indicator" *ngIf="sortBy === 'status'">
+              {{ sortDirection === 'asc' ? '↑' : '↓' }}
+            </span>
+          </th>
+          <th>OS Type</th>
+          <th>Resources</th>
+          <th>Server</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let vm of vms" class="vm-row">
+          <td class="checkbox-col">
+            <input 
+              type="checkbox" 
+              [checked]="selectedVMs.has(vm.id)"
+              (change)="toggleVMSelection(vm.id)"
+            >
+          </td>
+          <td class="vm-name">
+            <a [routerLink]="['/dashboard/vms', vm.id]" class="vm-link">
+              {{ vm.name }}
+            </a>
+            <div class="vm-uuid">{{ vm.uuid }}</div>
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(vm.status)">
+              {{ vm.status }}
+            </span>
+          </td>
+          <td>
+            <span class="os-type">{{ vm.os_type }}</span>
+            <div class="os-version" *ngIf="vm.os_version">{{ vm.os_version }}</div>
+          </td>
+          <td class="resources-col">
+            <div class="resource-item">
+              <span class="resource-icon">🖥️</span>
+              {{ vm.resources.cpu_cores }} CPU
+            </div>
+            <div class="resource-item">
+              <span class="resource-icon">💾</span>
+              {{ vm.resources.memory_mb }} MB RAM
+            </div>
+            <div class="resource-item">
+              <span class="resource-icon">💿</span>
+              {{ vm.resources.disk_gb }} GB
+            </div>
+          </td>
+          <td>
+            <div class="server-info">
+              <div class="server-name">{{ vm.server.hostname }}</div>
+              <div class="server-ip">{{ vm.server.ip_address }}</div>
+            </div>
+          </td>
+          <td class="actions-col">
+            <div class="action-buttons">
+              <button 
+                *ngIf="vm.status === VMStatus.STOPPED" 
+                (click)="startVM(vm)" 
+                class="btn btn-success btn-sm"
+                title="Start VM"
+              >
+                ▶️
+              </button>
+              <button 
+                *ngIf="vm.status === VMStatus.RUNNING" 
+                (click)="stopVM(vm)" 
+                class="btn btn-warning btn-sm"
+                title="Stop VM"
+              >
+                ⏹️
+              </button>
+              <a 
+                [routerLink]="['/dashboard/vms', vm.id, 'console']" 
+                class="btn btn-info btn-sm"
+                title="Console"
+                *ngIf="vm.status === VMStatus.RUNNING"
+              >
+                🖥️
+              </a>
+              <a 
+                [routerLink]="['/dashboard/vms', vm.id, 'edit']" 
+                class="btn btn-secondary btn-sm"
+                title="Edit"
+              >
+                ✏️
+              </a>
+              <button 
+                (click)="deleteVM(vm)" 
+                class="btn btn-danger btn-sm"
+                title="Delete VM"
+              >
+                🗑️
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="vms.length === 0 && !loading">
+      <div class="empty-icon">💻</div>
+      <h3>No VMs Found</h3>
+      <p>Get started by creating your first virtual machine.</p>
+      <a routerLink="/dashboard/vms/create" class="btn btn-primary">Create VM</a>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" *ngIf="totalPages > 1">
+    <div class="pagination-info">
+      Showing {{ (currentPage - 1) * perPage + 1 }} to {{ Math.min(currentPage * perPage, total) }} of {{ total }} VMs
+    </div>
+    <div class="pagination-controls">
+      <button 
+        (click)="onPageChange(currentPage - 1)" 
+        [disabled]="currentPage === 1"
+        class="btn btn-secondary btn-sm"
+      >
+        Previous
+      </button>
+      
+      <span class="page-numbers">
+        <button 
+          *ngFor="let page of [].constructor(totalPages); let i = index"
+          (click)="onPageChange(i + 1)"
+          [class.active]="currentPage === i + 1"
+          class="btn btn-secondary btn-sm page-btn"
+        >
+          {{ i + 1 }}
+        </button>
+      </span>
+      
+      <button 
+        (click)="onPageChange(currentPage + 1)" 
+        [disabled]="currentPage === totalPages"
+        class="btn btn-secondary btn-sm"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+</div>

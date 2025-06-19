@@ -15,7 +15,11 @@
     "type": "git",
     "url": "git+https://github.com/darkstormgames/rollo_site.git"
   },
-  "keywords": ["angular", "website", "portfolio"],
+  "keywords": [
+    "angular",
+    "website",
+    "portfolio"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -23,10 +27,13 @@
   },
   "homepage": "https://github.com/darkstormgames/rollo_site#readme",
   "dependencies": {
+    "@angular/animations": "^20.0.4",
+    "@angular/cdk": "^20.0.3",
     "@angular/common": "^20.0.0",
     "@angular/compiler": "^20.0.0",
     "@angular/core": "^20.0.0",
     "@angular/forms": "^20.0.0",
+    "@angular/material": "^20.0.3",
     "@angular/platform-browser": "^20.0.0",
     "@angular/router": "^20.0.0",
     "rxjs": "~7.8.0",
