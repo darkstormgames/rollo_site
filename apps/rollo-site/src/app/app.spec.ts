@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { App } from './app';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [App, HttpClientTestingModule, RouterTestingModule],
     }).compileComponents();
   });
 
@@ -18,6 +20,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, rollo-site');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Rollo Site');
   });
 });
