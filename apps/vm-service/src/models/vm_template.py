@@ -1,6 +1,6 @@
 """VMTemplate model for predefined VM configurations."""
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .base import Base
@@ -18,6 +18,8 @@ class VMTemplate(Base):
     # Template information
     name = Column(String(255), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
+    type = Column(String(20), nullable=False, default="custom")  # small, medium, large, custom
+    version = Column(Integer, nullable=False, default=1)
     
     # Operating system
     os_type = Column(String(50), nullable=False, default="linux")  # Using String instead of Enum for flexibility
@@ -28,12 +30,20 @@ class VMTemplate(Base):
     memory_mb = Column(Integer, nullable=False, default=1024)
     disk_gb = Column(Float, nullable=False, default=20.0)
     
+    # Resource configuration (JSON)
+    resource_config = Column(Text, nullable=True)  # JSON blob for advanced resource configuration
+    
     # Base image
     base_image_path = Column(String(500), nullable=False)
+    
+    # Template metadata
+    tags = Column(Text, nullable=True)  # JSON array of tags
+    public = Column(Boolean, nullable=False, default=False)
     
     # Ownership and timestamps
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
     created_by_user = relationship("User", back_populates="created_templates")

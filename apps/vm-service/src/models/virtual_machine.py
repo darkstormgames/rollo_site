@@ -1,6 +1,6 @@
 """VirtualMachine model for VM instances."""
 
-from sqlalchemy import Column, Integer, String, Enum, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Enum, DateTime, ForeignKey, Float, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -44,8 +44,21 @@ class VirtualMachine(Base):
     
     # Hardware specifications
     cpu_cores = Column(Integer, nullable=False, default=1)
+    cpu_sockets = Column(Integer, nullable=False, default=1)
+    cpu_threads = Column(Integer, nullable=False, default=1)
+    cpu_model = Column(String(100), nullable=True)
+    cpu_pinning = Column(Text, nullable=True)  # JSON array of pinned cores
+    cpu_shares = Column(Integer, nullable=True)
+    cpu_limit = Column(Integer, nullable=True)  # CPU limit percentage
+    numa_nodes = Column(Text, nullable=True)  # JSON array of NUMA nodes
+    
     memory_mb = Column(Integer, nullable=False, default=1024)
-    disk_gb = Column(Float, nullable=False, default=20.0)
+    memory_hugepages = Column(Boolean, nullable=False, default=False)
+    memory_balloon = Column(Boolean, nullable=False, default=True)
+    memory_shares = Column(Integer, nullable=True)
+    memory_numa_nodes = Column(Text, nullable=True)  # JSON array of NUMA nodes
+    
+    disk_gb = Column(Float, nullable=False, default=20.0)  # Primary disk size (for backwards compatibility)
     
     # Operating system
     os_type = Column(Enum(OSType), nullable=False, default=OSType.LINUX)
@@ -64,6 +77,8 @@ class VirtualMachine(Base):
     server = relationship("Server", back_populates="virtual_machines")
     created_by_user = relationship("User", back_populates="created_vms")
     snapshots = relationship("VMSnapshot", back_populates="virtual_machine", cascade="all, delete-orphan")
+    disks = relationship("VMDisk", back_populates="virtual_machine", cascade="all, delete-orphan")
+    networks = relationship("VMNetwork", back_populates="virtual_machine", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<VirtualMachine(id={self.id}, name='{self.name}', uuid='{self.uuid}', status='{self.status.value}')>"
