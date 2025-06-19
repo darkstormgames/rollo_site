@@ -10,6 +10,7 @@ from core.rate_limit import RateLimitMiddleware
 from models.base import DatabaseSession, create_tables
 from api.health import create_health_router
 from api.auth import router as auth_router
+from api.example import router as example_router
 
 # Setup logging
 setup_logging()
@@ -42,6 +43,7 @@ app.add_middleware(
 health_router = create_health_router()
 app.include_router(health_router, prefix="/api/v1", tags=["health"])
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
+app.include_router(example_router, prefix="/api/example", tags=["examples"])
 
 
 @app.on_event("startup")
