@@ -13,6 +13,7 @@ from api.auth import router as auth_router
 from api.example import router as example_router
 from api.vm import router as vm_router
 from api.server import router as server_router
+from websocket.endpoints import router as websocket_router
 
 # Setup logging
 setup_logging()
@@ -48,6 +49,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 app.include_router(example_router, prefix="/api/example", tags=["examples"])
 app.include_router(vm_router, prefix="/api", tags=["virtual-machines"])
 app.include_router(server_router, prefix="/api", tags=["servers"])
+app.include_router(websocket_router, tags=["websockets"])
 
 
 @app.on_event("startup")

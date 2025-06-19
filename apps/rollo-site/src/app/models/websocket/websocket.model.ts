@@ -7,7 +7,14 @@ export enum WebSocketEventType {
   SERVER_REGISTERED = 'server_registered',
   SERVER_REMOVED = 'server_removed',
   SERVER_METRICS_UPDATE = 'server_metrics_update',
-  CONNECTION_STATUS = 'connection_status'
+  CONNECTION_STATUS = 'connection_status',
+  PROGRESS = 'progress',
+  ALERT = 'alert',
+  SUBSCRIPTION_CONFIRMED = 'subscription_confirmed',
+  CONSOLE_OUTPUT = 'console_output',
+  CONSOLE_STATUS = 'console_status',
+  WEBSOCKET_STATS = 'websocket_stats',
+  PONG = 'pong'
 }
 
 export enum ConnectionStatus {
@@ -112,10 +119,46 @@ export interface WebSocketConfig {
   maxReconnectAttempts: number;
   heartbeatInterval: number;
   debug: boolean;
+  messageQueueSize?: number;
+  offlineQueueEnabled?: boolean;
 }
 
 export interface SubscriptionOptions {
   events: WebSocketEventType[];
   vm_ids?: number[];
   server_ids?: number[];
+}
+
+export interface ProgressEvent {
+  operation_id: string;
+  operation_type: string;
+  progress_percent: number;
+  status: string;
+  message?: string;
+  timestamp: string;
+}
+
+export interface AlertEvent {
+  alert_id: string;
+  alert_type: string;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  title: string;
+  message: string;
+  entity_type?: 'vm' | 'server';
+  entity_id?: number;
+  timestamp: string;
+}
+
+export interface ConsoleEvent {
+  vm_id: number;
+  output?: string;
+  status?: string;
+  message?: string;
+  timestamp: string;
+}
+
+export interface WebSocketStats {
+  active_connections: number;
+  room_stats: { [key: string]: number };
+  timestamp: string;
 }
