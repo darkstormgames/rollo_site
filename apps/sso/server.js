@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 
 const { sequelize } = require('./src/models');
 const JWTManager = require('./src/utils/jwt-manager');
+const KeyRotationManager = require('./src/utils/key-rotation-manager');
 const authRoutes = require('./src/routes/auth');
 const securityRoutes = require('./src/routes/security');
 
@@ -105,6 +106,10 @@ async function startServer() {
         // Initialize JWT secrets
         await JWTManager.initializeSecrets();
         console.log('JWT secrets initialized');
+        
+        // Initialize key rotation scheduler
+        KeyRotationManager.initializeScheduler();
+        console.log('Key rotation scheduler initialized');
         
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, () => {

@@ -516,4 +516,125 @@ router.get('/certs',
     }
 );
 
+// Rotate SSH key manually
+router.post('/keys/:keyId/rotate',
+    authMiddleware,
+    [
+        param('keyId').isUUID().withMessage('Invalid key ID')
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: errors.array()
+                });
+            }
+
+            const { keyId } = req.params;
+            const userId = req.user.id;
+            const ipAddress = getClientIP(req);
+            const userAgent = req.get('User-Agent');
+
+            const KeyRotationManager = require('../utils/key-rotation-manager');
+            const newKey = await KeyRotationManager.manualRotateSSHKey(keyId, userId);
+
+            res.json({
+                message: 'SSH key rotated successfully',
+                newKey: {
+                    keyId: newKey.keyId,
+                    name: newKey.name,
+                    publicKey: newKey.publicKey,
+                    fingerprint: newKey.fingerprint,
+                    keySize: newKey.keySize,
+                    createdAt: newKey.createdAt
+                }
+            });
+
+        } catch (error) {
+            console.error('SSH key rotation error:', error);
+            res.status(500).json({
+                error: 'Failed to rotate SSH key',
+                details: error.message
+            });
+        }
+    }
+);
+
+// Renew TLS certificate manually
+router.post('/certs/:certificateId/renew',
+    authMiddleware,
+    [
+        param('certificateId').isUUID().withMessage('Invalid certificate ID')
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: errors.array()
+                });
+            }
+
+            const { certificateId } = req.params;
+            const userId = req.user.id;
+
+            const KeyRotationManager = require('../utils/key-rotation-manager');
+            const newCert = await KeyRotationManager.manualRenewTLSCertificate(certificateId, userId);
+
+            res.json({
+                message: 'TLS certificate renewed successfully',
+                certificate: {
+                    certificateId: newCert.certificateId,
+                    name: newCert.name,
+                    certificate: newCert.certificate,
+                    fingerprint: newCert.fingerprint,
+                    subject: newCert.subject,
+                    validFrom: newCert.validFrom,
+                    validTo: newCert.validTo,
+                    createdAt: newCert.createdAt
+                }
+            });
+
+        } catch (error) {
+            console.error('TLS certificate renewal error:', error);
+            res.status(500).json({
+                error: 'Failed to renew TLS certificate',
+                details: error.message
+            });
+        }
+    }
+);
+
+// Get security statistics
+router.get('/stats',
+    authMiddleware,
+    async (req, res) => {
+        try {
+            const SecurityAuditLogger = require('../utils/security-audit-logger');
+            const KeyRotationManager = require('../utils/key-rotation-manager');
+
+            const [auditMetrics, rotationStats] = await Promise.all([
+                SecurityAuditLogger.getSecurityMetrics(30),
+                KeyRotationManager.getRotationStats()
+            ]);
+
+            res.json({
+                auditMetrics,
+                rotationStats,
+                generatedAt: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('Security stats error:', error);
+            res.status(500).json({
+                error: 'Failed to get security statistics',
+                details: 'Internal server error'
+            });
+        }
+    }
+);
+
 module.exports = router;

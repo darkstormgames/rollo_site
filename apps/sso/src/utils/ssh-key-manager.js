@@ -4,8 +4,8 @@ const { Client } = require('ssh2');
 const SecurityUtils = require('./security');
 
 class SSHKeyManager {
-    static KEY_SIZE = 4096;
     static ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+    static KEY_SIZE = 4096;
 
     /**
      * Generate RSA SSH key pair (4096-bit)
@@ -34,7 +34,7 @@ class SSHKeyManager {
      */
     static encryptPrivateKey(privateKey, encryptionKey) {
         const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipher(this.ENCRYPTION_ALGORITHM, encryptionKey);
+        const cipher = crypto.createCipher('aes-256-gcm', encryptionKey);
         
         let encrypted = cipher.update(privateKey, 'utf8', 'hex');
         encrypted += cipher.final('hex');
@@ -52,10 +52,7 @@ class SSHKeyManager {
      * Decrypt private key from storage
      */
     static decryptPrivateKey(encryptedData, encryptionKey) {
-        const decipher = crypto.createDecipher(
-            this.ENCRYPTION_ALGORITHM, 
-            encryptionKey
-        );
+        const decipher = crypto.createDecipher('aes-256-gcm', encryptionKey);
         
         decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
         
