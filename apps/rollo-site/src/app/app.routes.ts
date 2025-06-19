@@ -10,6 +10,8 @@ import { DashboardLayout } from './components/layout/dashboard-layout/dashboard-
 import { DashboardOverview } from './pages/dashboard-overview/dashboard-overview';
 import { VmList } from './components/vm/vm-list/vm-list';
 import { VmDetail } from './components/vm/vm-detail/vm-detail';
+import { VmCreate } from './components/vm/vm-create/vm-create';
+import { MonitoringDashboard } from './pages/monitoring-dashboard/monitoring-dashboard';
 
 export const routes: Routes = [
   { path: '', component: Home },
@@ -25,10 +27,11 @@ export const routes: Routes = [
     children: [
       { path: '', component: DashboardOverview },
       { path: 'vms', component: VmList },
+      { path: 'vms/create', component: VmCreate },
       { path: 'vms/:id', component: VmDetail },
+      { path: 'monitoring', component: MonitoringDashboard },
       // TODO: Add more dashboard routes as components are created
       { path: 'servers', redirectTo: '' },
-      { path: 'monitoring', redirectTo: '' },
       { path: 'users', redirectTo: '' },
       { path: 'settings', redirectTo: '' }
     ]
