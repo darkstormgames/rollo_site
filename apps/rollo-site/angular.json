@@ -34,6 +34,9 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "scripts": [
+              "node_modules/@novnc/novnc/lib/rfb.js"
             ]
           },
           "configurations": {

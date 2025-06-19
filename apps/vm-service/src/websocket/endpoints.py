@@ -1,5 +1,6 @@
 """WebSocket endpoints for real-time VM monitoring."""
 
+import asyncio
 import json
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
@@ -238,6 +239,73 @@ async def console_endpoint(
     finally:
         if connection_id:
             websocket_manager.disconnect(connection_id)
+
+
+@router.websocket("/ws/console/vnc/{session_token}")
+async def console_vnc_endpoint(
+    websocket: WebSocket,
+    session_token: str,
+    db: Session = Depends(DatabaseSession.get_session)
+):
+    """VM console WebSocket endpoint for VNC/SPICE proxy.
+    
+    Provides:
+    - VNC/SPICE protocol proxy
+    - Session-based authentication
+    - Real-time console interaction
+    """
+    from core.console_service import console_service
+    
+    try:
+        # Accept WebSocket connection
+        await websocket.accept()
+        
+        # Validate session token
+        session = await console_service.get_session_by_token(session_token)
+        if not session:
+            await websocket.close(code=4001, reason="Invalid or expired session token")
+            return
+        
+        logger.info(f"Console VNC connection established for session {session_token}, VM {session.vm_id}")
+        
+        # Send initial connection status
+        await websocket.send_text(json.dumps({
+            "type": "console_connected",
+            "data": {
+                "session_token": session_token,
+                "vm_id": session.vm_id,
+                "protocol": session.protocol,
+                "status": "connected"
+            }
+        }))
+        
+        # Start VNC/SPICE proxy
+        proxy_started = await console_service.start_vnc_proxy(session_token, websocket)
+        
+        if not proxy_started:
+            await websocket.close(code=4002, reason="Failed to start console proxy")
+            return
+        
+        # The VNC proxy will handle the WebSocket from here
+        # This coroutine will continue until the proxy task completes
+        
+        # Wait for proxy task to complete
+        if session_token in console_service.vnc_proxies:
+            try:
+                await console_service.vnc_proxies[session_token]
+            except asyncio.CancelledError:
+                logger.info(f"VNC proxy cancelled for session {session_token}")
+        
+    except Exception as e:
+        logger.error(f"Console VNC connection error for session {session_token}: {e}")
+        try:
+            await websocket.close(code=4000, reason="Internal server error")
+        except:
+            pass
+    finally:
+        # Clean up session
+        await console_service.cleanup_session(session_token)
+        logger.info(f"Console VNC connection closed for session {session_token}")
 
 
 @router.websocket("/ws/server/{server_id}")
