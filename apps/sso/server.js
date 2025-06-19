@@ -6,7 +6,9 @@ const rateLimit = require('express-rate-limit');
 
 const { sequelize } = require('./src/models');
 const JWTManager = require('./src/utils/jwt-manager');
+const KeyRotationManager = require('./src/utils/key-rotation-manager');
 const authRoutes = require('./src/routes/auth');
+const securityRoutes = require('./src/routes/security');
 
 const app = express();
 
@@ -67,6 +69,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/security', securityRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -104,11 +107,16 @@ async function startServer() {
         await JWTManager.initializeSecrets();
         console.log('JWT secrets initialized');
         
+        // Initialize key rotation scheduler
+        KeyRotationManager.initializeScheduler();
+        console.log('Key rotation scheduler initialized');
+        
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, () => {
             console.log(`🚀 SSO Server running on port ${PORT}`);
             console.log(`📋 Health check: http://localhost:${PORT}/health`);
             console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
+            console.log(`🔒 Security API: http://localhost:${PORT}/api/security`);
         });
         
     } catch (error) {
