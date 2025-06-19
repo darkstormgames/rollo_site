@@ -92,14 +92,60 @@ vm-service/
 └── server.py         # Application entry point
 ```
 
+## Database Setup
+
+### Prerequisites
+
+For PostgreSQL (production):
+```bash
+# Install PostgreSQL
+sudo apt-get install postgresql postgresql-contrib
+
+# Create database and user
+sudo -u postgres psql
+CREATE DATABASE vm_service;
+CREATE USER vm_user WITH PASSWORD 'vm_password';
+GRANT ALL PRIVILEGES ON DATABASE vm_service TO vm_user;
+\q
+```
+
+### Initialize Database
+
+```bash
+# Initialize database with default data
+python init_db.py
+
+# Reset database (drops all tables)
+python init_db.py --reset
+```
+
+### Database Models
+
+The VM service includes the following database models:
+
+**Core Models:**
+- **User**: Authentication and authorization with RBAC
+- **Role**: Role-based access control with JSON permissions
+- **Server**: Physical/remote server management
+- **VirtualMachine**: VM instance management
+- **VMTemplate**: Predefined VM configurations
+
+**Supporting Models:**
+- **AuditLog**: Comprehensive action tracking
+- **ServerMetrics**: Time-series metrics storage
+- **VMSnapshot**: VM snapshot management
+
 ## Testing
 
 ```bash
-# Run tests
-pytest
+# Run all tests
+DATABASE_URL="sqlite:///test.db" pytest
 
 # Run tests with coverage
-pytest --cov=src
+DATABASE_URL="sqlite:///test.db" pytest --cov=src
+
+# Run specific test files
+DATABASE_URL="sqlite:///test.db" pytest tests/test_models.py -v
 ```
 
 ## Database Migrations
@@ -110,7 +156,38 @@ alembic revision --autogenerate -m "Description"
 
 # Apply migrations
 alembic upgrade head
+
+# View migration history
+alembic history
+
+# Downgrade to previous migration
+alembic downgrade -1
 ```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | - | Full database connection string |
+| `DB_HOST` | localhost | Database host |
+| `DB_PORT` | 5432 | Database port |
+| `DB_NAME` | vm_service | Database name |
+| `DB_USER` | vm_user | Database user |
+| `DB_PASSWORD` | - | Database password |
+| `SECRET_KEY` | your-secret-key-here | JWT secret key |
+| `DEBUG` | false | Enable debug mode |
+
+## API Endpoints
+
+### Health Checks
+- `GET /api/v1/health` - Service health status
+- `GET /api/v1/health/ready` - Readiness check
+- `GET /api/v1/health/live` - Liveness check
+
+### API Documentation
+- `GET /docs` - Swagger UI
+- `GET /redoc` - ReDoc documentation
+- `GET /openapi.json` - OpenAPI schema
 
 ## Contributing
 
