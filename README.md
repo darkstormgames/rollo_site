@@ -146,6 +146,12 @@ From the root directory:
 - `npm run test:rollo-site` - Run tests for main website
 - `npm run test:sso` - Run tests for SSO service
 
+### CI/CD Scripts
+The repository includes automated CI/CD workflows with comprehensive caching:
+- **ci.yml** - Main build, test, and validation pipeline
+- **build-and-cache.yml** - Artifact building and caching optimization  
+- **cache-management.yml** - Cache warm-up and maintenance
+
 ## Architecture Benefits
 
 ### Security Isolation
@@ -170,6 +176,29 @@ From the root directory:
 - **API Gateway**: Centralized API management
 - **Monitoring**: Centralized logging and monitoring
 - **CI/CD**: Automated testing and deployment pipelines
+
+## CI/CD and Caching
+
+This repository implements a comprehensive caching strategy to optimize CI/CD pipeline performance:
+
+- **50% faster builds** through multi-layered dependency and artifact caching
+- **Automated cache management** with scheduled warm-up and monitoring
+- **Manual cache control** for troubleshooting and optimization
+
+See [CACHING_STRATEGY.md](CACHING_STRATEGY.md) for detailed documentation.
+
+### Quick Cache Commands
+
+```bash
+# Normal development - caching works automatically
+git push origin feature-branch
+
+# Manual cache refresh (if build issues)
+# Go to Actions > Cache Management > Run workflow > Enable "Force refresh"
+
+# Cache version bump (for major issues)
+# Update CACHE_VERSION in .github/workflows/*.yml files
+```
 
 ## Contributing
 

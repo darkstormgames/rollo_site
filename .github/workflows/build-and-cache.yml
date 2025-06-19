@@ -1,0 +1,181 @@
+name: Cache Dependencies and Artifacts
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CACHE_VERSION: v1
+  NODE_VERSION: '20.19.2'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  cache-dependencies-all:
+    name: Cache Dependencies for All Apps
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - app: rollo-site
+            type: angular
+            cache-path: |
+              apps/rollo-site/.angular
+              apps/rollo-site/node_modules/.cache
+          - app: sso
+            type: node
+            cache-path: |
+              apps/sso/node_modules/.cache
+          - app: vm-service
+            type: python
+            cache-path: |
+              apps/vm-service/**/__pycache__
+              apps/vm-service/**/*.pyc
+              apps/vm-service/venv
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for Node/Angular apps)
+        if: matrix.type != 'python'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            apps/${{ matrix.app }}/package-lock.json
+
+      - name: Setup Python (for Python apps)
+        if: matrix.type == 'python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: apps/${{ matrix.app }}/requirements.txt
+
+      # Comprehensive dependency caching
+      - name: Cache Node.js dependencies
+        if: matrix.type != 'python'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            apps/${{ matrix.app }}/node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-deps-${{ matrix.app }}-${{ hashFiles(format('apps/{0}/package-lock.json', matrix.app), 'package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-deps-${{ matrix.app }}-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-deps-
+
+      - name: Cache Python dependencies
+        if: matrix.type == 'python'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            apps/${{ matrix.app }}/venv
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-${{ matrix.app }}-${{ hashFiles(format('apps/{0}/requirements.txt', matrix.app)) }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-${{ matrix.app }}-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-
+
+      # Cache for potential build artifacts (without building)
+      - name: Cache potential build artifacts
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.cache-path }}
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-build-${{ matrix.app }}-${{ github.sha }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-build-${{ matrix.app }}-
+
+      # Install dependencies to populate caches
+      - name: Install dependencies (Node.js)
+        if: matrix.type != 'python'
+        run: |
+          npm ci
+          cd apps/${{ matrix.app }}
+          npm ci
+
+      - name: Install dependencies (Python)
+        if: matrix.type == 'python'
+        run: |
+          cd apps/${{ matrix.app }}
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # SCSS compilation caching (for Angular app)
+      - name: Cache SCSS compilation
+        if: matrix.app == 'rollo-site'
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/rollo-site/dist/**/*.css
+            apps/rollo-site/.angular/cache
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-scss-${{ hashFiles('apps/rollo-site/src/**/*.scss', 'packages/shared-styles/**/*.scss') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-scss-
+
+      # TypeScript compilation caching
+      - name: Cache TypeScript compilation
+        if: matrix.type == 'angular'
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/${{ matrix.app }}/dist/**/*.js
+            apps/${{ matrix.app }}/dist/**/*.js.map
+            apps/${{ matrix.app }}/.angular/cache
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-typescript-${{ matrix.app }}-${{ hashFiles(format('apps/{0}/src/**/*.ts', matrix.app), format('apps/{0}/tsconfig.json', matrix.app)) }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-typescript-${{ matrix.app }}-
+
+  # Cache cleanup and monitoring
+  cache-cleanup:
+    name: Cache Cleanup and Monitoring
+    runs-on: ubuntu-latest
+    needs: cache-dependencies-all
+    if: always()
+    steps:
+      - name: Cache size monitoring
+        run: |
+          echo "## Cache Monitoring Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Cache Usage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Cache version: ${{ env.CACHE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Total jobs: ${{ strategy.job-total }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cache Key Patterns" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependencies: \`${{ env.CACHE_VERSION }}-${{ runner.os }}-deps-{app}-{hash}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Build artifacts: \`${{ env.CACHE_VERSION }}-${{ runner.os }}-build-{app}-{sha}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- TypeScript: \`${{ env.CACHE_VERSION }}-${{ runner.os }}-typescript-{app}-{hash}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- SCSS: \`${{ env.CACHE_VERSION }}-${{ runner.os }}-scss-{hash}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Manual Cache Busting" >> $GITHUB_STEP_SUMMARY
+          echo "To manually bust caches, update the CACHE_VERSION environment variable." >> $GITHUB_STEP_SUMMARY
+
+  # Performance benchmarking
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    needs: cache-dependencies-all
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Performance benchmark
+        run: |
+          echo "## Performance Benchmark" >> $GITHUB_STEP_SUMMARY
+          echo "Dependencies cached at: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "Workflow duration: This will be calculated by GitHub Actions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cache Effectiveness" >> $GITHUB_STEP_SUMMARY
+          echo "- Target: 50% reduction in dependency installation time" >> $GITHUB_STEP_SUMMARY
+          echo "- Target cache hit rate: >80%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Monitor cache hit rates over multiple runs" >> $GITHUB_STEP_SUMMARY
+          echo "2. Optimize cache keys based on actual usage patterns" >> $GITHUB_STEP_SUMMARY
+          echo "3. Dependencies are ready for build and test workflows" >> $GITHUB_STEP_SUMMARY
