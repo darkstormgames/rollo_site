@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { 
@@ -15,6 +16,7 @@ import {
   AlertEvent,
   ConnectionStatus
 } from '../../models/websocket/websocket.model';
+import { ConnectionStatusComponent } from '../connection-status/connection-status.component';
 
 interface VMInfo {
   id: number;
@@ -32,6 +34,8 @@ interface ServerInfo {
 
 @Component({
   selector: 'app-realtime-monitor',
+  standalone: true,
+  imports: [CommonModule, ConnectionStatusComponent],
   template: `
     <div class="realtime-monitor">
       <header class="monitor-header">

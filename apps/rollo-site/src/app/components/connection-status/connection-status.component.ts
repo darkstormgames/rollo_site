@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ConnectionStatus } from '../../models/websocket/websocket.model';
@@ -6,6 +7,8 @@ import { WebSocketService } from '../../services/websocket/websocket.service';
 
 @Component({
   selector: 'app-connection-status',
+  standalone: true,
+  imports: [CommonModule],
   template: `
     <div class="connection-status" [ngClass]="statusClass">
       <span class="status-indicator"></span>

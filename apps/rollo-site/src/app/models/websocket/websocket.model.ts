@@ -13,7 +13,8 @@ export enum WebSocketEventType {
   SUBSCRIPTION_CONFIRMED = 'subscription_confirmed',
   CONSOLE_OUTPUT = 'console_output',
   CONSOLE_STATUS = 'console_status',
-  WEBSOCKET_STATS = 'websocket_stats'
+  WEBSOCKET_STATS = 'websocket_stats',
+  PONG = 'pong'
 }
 
 export enum ConnectionStatus {

@@ -91,7 +91,7 @@ export class WebSocketService {
             this.log('Received message:', message);
             
             // Handle special message types
-            if (message.type === 'pong') {
+            if (message.type === WebSocketEventType.PONG) {
               this.log('Received pong response');
               return;
             }
