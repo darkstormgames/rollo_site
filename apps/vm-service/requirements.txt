@@ -12,8 +12,11 @@ sqlalchemy==2.0.23
 alembic==1.13.1
 psycopg2-binary==2.9.7
 
-# VM management (commented out for now due to system dependencies)
-# libvirt-python==10.0.0
+# VM management
+libvirt-python==10.0.0
+
+# Template engine for XML generation
+jinja2==3.1.2
 
 # Authentication and security
 python-jose[cryptography]==3.3.0
