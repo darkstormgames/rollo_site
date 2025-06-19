@@ -1,0 +1,288 @@
+name: CI/CD Pipeline with Comprehensive Caching
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CACHE_VERSION: v1
+  NODE_VERSION: '20.19.2'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # Dependencies and cache setup
+  setup-cache:
+    name: Setup Dependencies and Cache
+    runs-on: ubuntu-latest
+    outputs:
+      npm-cache-hit: ${{ steps.npm-cache.outputs.cache-hit }}
+      python-cache-hit: ${{ steps.python-cache.outputs.cache-hit }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      # Root level npm cache
+      - name: Cache root npm dependencies
+        id: npm-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-root-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-root-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      # Rollo Site npm cache
+      - name: Cache Rollo Site npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            apps/rollo-site/node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-rollo-site-${{ hashFiles('apps/rollo-site/package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-rollo-site-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      # SSO npm cache
+      - name: Cache SSO npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            apps/sso/node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-sso-${{ hashFiles('apps/sso/package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-sso-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      # Python dependencies cache
+      - name: Cache Python dependencies
+        id: python-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            apps/vm-service/venv
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-${{ hashFiles('apps/vm-service/requirements.txt') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-
+
+      # Install dependencies if cache miss
+      - name: Install root dependencies
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Install Python dependencies
+        if: steps.python-cache.outputs.cache-hit != 'true'
+        run: |
+          cd apps/vm-service
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+  # Build and test Rollo Site (Angular)
+  build-rollo-site:
+    name: Build and Test Rollo Site
+    runs-on: ubuntu-latest
+    needs: setup-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Restore caches
+      - name: Restore root npm cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-root-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-root-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      - name: Restore Rollo Site npm cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.npm
+            apps/rollo-site/node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-rollo-site-${{ hashFiles('apps/rollo-site/package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-rollo-site-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      # Build artifacts cache
+      - name: Cache Rollo Site build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/rollo-site/dist
+            apps/rollo-site/.angular
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-build-rollo-site-${{ hashFiles('apps/rollo-site/src/**/*', 'apps/rollo-site/angular.json', 'apps/rollo-site/tsconfig.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-build-rollo-site-
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/rollo-site && npm ci
+
+      - name: Build Rollo Site
+        run: npm run build:rollo-site
+
+      - name: Test Rollo Site
+        run: npm run test:rollo-site -- --watch=false --browsers=ChromeHeadless
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollo-site-dist
+          path: apps/rollo-site/dist/
+          retention-days: 7
+
+  # Build and test SSO Service
+  build-sso:
+    name: Build and Test SSO Service
+    runs-on: ubuntu-latest
+    needs: setup-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Restore caches
+      - name: Restore root npm cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-root-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-root-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      - name: Restore SSO npm cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.npm
+            apps/sso/node_modules
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-sso-${{ hashFiles('apps/sso/package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-sso-
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/sso && npm ci
+
+      - name: Test SSO Service
+        run: npm run test:sso
+
+  # Build and test VM Service (Python)
+  build-vm-service:
+    name: Build and Test VM Service
+    runs-on: ubuntu-latest
+    needs: setup-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Restore Python cache
+      - name: Restore Python cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/pip
+            apps/vm-service/venv
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-${{ hashFiles('apps/vm-service/requirements.txt') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-
+
+      # Cache Python bytecode
+      - name: Cache Python bytecode
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/vm-service/**/__pycache__
+            apps/vm-service/**/*.pyc
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-bytecode-${{ hashFiles('apps/vm-service/src/**/*.py', 'apps/vm-service/tests/**/*.py') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-python-bytecode-
+
+      - name: Setup Python environment
+        run: |
+          cd apps/vm-service
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Test VM Service
+        run: |
+          cd apps/vm-service
+          source venv/bin/activate
+          python -m pytest tests/ -v
+
+  # Integration tests and final validation
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build-rollo-site, build-sso, build-vm-service]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Rollo Site artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: rollo-site-dist
+          path: apps/rollo-site/dist/
+
+      - name: Validate build artifacts
+        run: |
+          echo "Validating build artifacts..."
+          test -f apps/rollo-site/dist/index.html || exit 1
+          echo "✅ All build artifacts present"
+
+      - name: Cache validation report
+        run: |
+          echo "## Cache Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "Cache version: ${{ env.CACHE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Root npm cache hit: ${{ needs.setup-cache.outputs.npm-cache-hit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Python cache hit: ${{ needs.setup-cache.outputs.python-cache-hit }}" >> $GITHUB_STEP_SUMMARY

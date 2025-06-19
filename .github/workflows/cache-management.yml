@@ -1,0 +1,197 @@
+name: Cache Warm-up and Dependency Management
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC to warm up caches
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      force_cache_refresh:
+        description: 'Force refresh all caches'
+        required: false
+        default: 'false'
+        type: boolean
+      cache_version_bump:
+        description: 'Bump cache version (for manual cache busting)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  # Conditional cache version bump
+  CACHE_VERSION: ${{ github.event.inputs.cache_version_bump == 'true' && 'v2' || 'v1' }}
+  NODE_VERSION: '20.19.2'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # Pre-warm dependency caches
+  warm-up-dependencies:
+    name: Warm-up Dependency Caches
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          - dependency-type: npm-root
+            cache-paths: |
+              ~/.npm
+              node_modules
+            cache-key-files: package-lock.json
+          - dependency-type: npm-rollo-site
+            cache-paths: |
+              ~/.npm
+              apps/rollo-site/node_modules
+            cache-key-files: apps/rollo-site/package-lock.json
+          - dependency-type: npm-sso
+            cache-paths: |
+              ~/.npm
+              apps/sso/node_modules
+            cache-key-files: apps/sso/package-lock.json
+          - dependency-type: python-vm-service
+            cache-paths: |
+              ~/.cache/pip
+              apps/vm-service/venv
+            cache-key-files: apps/vm-service/requirements.txt
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for npm dependencies)
+        if: contains(matrix.dependency-type, 'npm')
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python (for pip dependencies)
+        if: contains(matrix.dependency-type, 'python')
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Cache dependencies with force refresh option
+      - name: Cache dependencies
+        if: github.event.inputs.force_cache_refresh != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.cache-paths }}
+          key: ${{ env.CACHE_VERSION }}-${{ matrix.os }}-${{ matrix.dependency-type }}-${{ hashFiles(matrix.cache-key-files) }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ matrix.os }}-${{ matrix.dependency-type }}-
+
+      # Install dependencies to populate cache
+      - name: Install npm dependencies
+        if: contains(matrix.dependency-type, 'npm')
+        run: |
+          if [[ "${{ matrix.dependency-type }}" == "npm-root" ]]; then
+            npm ci
+          elif [[ "${{ matrix.dependency-type }}" == "npm-rollo-site" ]]; then
+            cd apps/rollo-site && npm ci
+          elif [[ "${{ matrix.dependency-type }}" == "npm-sso" ]]; then
+            cd apps/sso && npm ci
+          fi
+
+      - name: Install Python dependencies
+        if: contains(matrix.dependency-type, 'python')
+        run: |
+          cd apps/vm-service
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+  # Cache size monitoring and cleanup
+  cache-management:
+    name: Cache Management and Monitoring
+    runs-on: ubuntu-latest
+    needs: warm-up-dependencies
+    steps:
+      - name: Cache size analysis
+        run: |
+          echo "## Cache Management Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Current Cache Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Cache version: ${{ env.CACHE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Force refresh: ${{ github.event.inputs.force_cache_refresh || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Version bump: ${{ github.event.inputs.cache_version_bump || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cache Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "**Dependency Caches:**" >> $GITHUB_STEP_SUMMARY
+          echo "- npm (root): \`~/.npm + node_modules\`" >> $GITHUB_STEP_SUMMARY
+          echo "- npm (rollo-site): \`~/.npm + apps/rollo-site/node_modules\`" >> $GITHUB_STEP_SUMMARY
+          echo "- npm (sso): \`~/.npm + apps/sso/node_modules\`" >> $GITHUB_STEP_SUMMARY
+          echo "- pip (vm-service): \`~/.cache/pip + apps/vm-service/venv\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Artifact Caches:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Angular dist: \`apps/rollo-site/dist + .angular\`" >> $GITHUB_STEP_SUMMARY
+          echo "- TypeScript compilation: \`dist/**/*.js + .angular/cache\`" >> $GITHUB_STEP_SUMMARY
+          echo "- SCSS compilation: \`dist/**/*.css + .angular/cache\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Python bytecode: \`**/__pycache__ + **/*.pyc\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cache Key Patterns" >> $GITHUB_STEP_SUMMARY
+          echo "- Primary keys use file content hashes for precise invalidation" >> $GITHUB_STEP_SUMMARY
+          echo "- Fallback keys provide partial cache restoration" >> $GITHUB_STEP_SUMMARY
+          echo "- Cache version prefix allows manual cache busting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Best Practices" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor cache hit rates in workflow summaries" >> $GITHUB_STEP_SUMMARY
+          echo "- Use cache version bumping for troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "- Regular cache warm-up via scheduled workflows" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub's 10GB cache limit monitoring" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cache troubleshooting guide
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Troubleshooting Guide" >> $GITHUB_STEP_SUMMARY
+          echo "**Cache Misses:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check if dependency files changed" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify cache key patterns in workflow logs" >> $GITHUB_STEP_SUMMARY
+          echo "3. Consider cache eviction due to storage limits" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Failures:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check for stale cached dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "2. Try force cache refresh workflow" >> $GITHUB_STEP_SUMMARY
+          echo "3. Bump cache version if persistent issues" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Manual Cache Busting:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Run this workflow with 'cache_version_bump' = true" >> $GITHUB_STEP_SUMMARY
+          echo "2. Or update CACHE_VERSION in workflow files" >> $GITHUB_STEP_SUMMARY
+          echo "3. Verify new caches are populated successfully" >> $GITHUB_STEP_SUMMARY
+
+  # Validate cache effectiveness
+  cache-validation:
+    name: Validate Cache Effectiveness
+    runs-on: ubuntu-latest
+    needs: warm-up-dependencies
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Test cache restoration speed
+        run: |
+          echo "Testing cache restoration performance..." >> $GITHUB_STEP_SUMMARY
+          
+          START_TIME=$(date +%s)
+          
+          # Test npm cache restoration
+          npm ci
+          cd apps/rollo-site && npm ci
+          cd ../sso && npm ci
+          cd ../..
+          
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          
+          echo "### Cache Performance Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency installation time: ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+          echo "- Target: <60s with cache hits" >> $GITHUB_STEP_SUMMARY
+          
+          if [ $DURATION -lt 60 ]; then
+            echo "✅ Cache performance target met" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Cache performance below target" >> $GITHUB_STEP_SUMMARY
+          fi
