@@ -59,6 +59,8 @@
       </div>
       
       <div class="header-right">
+        <app-theme-toggle mode="toggle" [compact]="true"></app-theme-toggle>
+        
         <div class="user-profile" *ngIf="currentUser">
           <span class="user-name">{{ currentUser.username }}</span>
           <div class="user-dropdown">

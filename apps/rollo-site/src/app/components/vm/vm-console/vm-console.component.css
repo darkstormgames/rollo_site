@@ -1,0 +1,318 @@
+.vm-console {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 600px;
+  background: var(--bg-color, #f8f9fa);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--header-bg, #fff);
+  border-bottom: 1px solid var(--border-color, #dee2e6);
+}
+
+.console-header h3 {
+  margin: 0;
+  color: var(--text-color, #333);
+  font-size: 1.2rem;
+}
+
+.console-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.console-controls .btn {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  background: var(--btn-bg, #fff);
+  color: var(--text-color, #333);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.console-controls .btn:hover:not(:disabled) {
+  background: var(--btn-hover-bg, #f8f9fa);
+  border-color: var(--primary-color, #007bff);
+}
+
+.console-controls .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.console-controls .btn.btn-danger {
+  background: var(--danger-color, #dc3545);
+  color: white;
+  border-color: var(--danger-color, #dc3545);
+}
+
+.console-controls .btn.btn-danger:hover:not(:disabled) {
+  background: var(--danger-hover, #c82333);
+}
+
+.console-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--console-bg, #000);
+  color: var(--console-text, #00ff00);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.console-content.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  border-radius: 0;
+}
+
+.console-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  gap: 1rem;
+}
+
+.console-loading p {
+  color: var(--console-text, #00ff00);
+  margin: 0;
+}
+
+.console-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.console-error p {
+  color: var(--error-color, #ff6b6b);
+  margin: 0;
+}
+
+.console-error .btn {
+  padding: 0.5rem 1rem;
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.console-error .btn:hover {
+  background: var(--primary-hover, #0056b3);
+}
+
+.console-output {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  min-height: 300px;
+  max-height: calc(100vh - 200px);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.console-output:focus {
+  outline: 2px solid var(--primary-color, #007bff);
+  outline-offset: -2px;
+}
+
+.console-line {
+  margin: 0;
+  padding: 2px 0;
+  line-height: 1.4;
+}
+
+.console-input {
+  border-top: 1px solid var(--border-color, #333);
+  padding: 0.5rem 1rem;
+  background: var(--console-bg, #000);
+}
+
+.console-command-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--console-text, #00ff00);
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  padding: 0.5rem 0;
+}
+
+.console-command-input::placeholder {
+  color: var(--console-placeholder, #666);
+}
+
+.console-command-input:focus {
+  outline: 2px solid var(--primary-color, #007bff);
+  outline-offset: 2px;
+}
+
+.console-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--status-bg, #f8f9fa);
+  border-top: 1px solid var(--border-color, #dee2e6);
+  font-size: 0.9rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.status-indicator::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-disconnected, #6c757d);
+  animation: none;
+}
+
+.status-indicator.connecting::before {
+  background: var(--status-connecting, #ffc107);
+  animation: pulse 1.5s infinite;
+}
+
+.status-indicator.connected::before {
+  background: var(--status-connected, #28a745);
+}
+
+.connection-info {
+  color: var(--text-muted, #6c757d);
+  font-size: 0.85rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .console-header {
+    padding: 0.75rem;
+  }
+  
+  .console-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .console-controls .btn {
+    min-width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+  
+  .console-output {
+    padding: 0.75rem;
+    font-size: 13px;
+  }
+  
+  .console-status {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .console-content.fullscreen .console-output {
+    max-height: calc(100vh - 150px);
+  }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .vm-console {
+    --bg-color: #1a1a1a;
+    --header-bg: #2d2d2d;
+    --border-color: #404040;
+    --text-color: #ffffff;
+    --btn-bg: #3d3d3d;
+    --btn-hover-bg: #4d4d4d;
+    --status-bg: #2d2d2d;
+    --text-muted: #999999;
+    --console-bg: #000000;
+    --console-text: #00ff00;
+    --console-placeholder: #666666;
+    --primary-color: #0d6efd;
+    --primary-hover: #0b5ed7;
+    --danger-color: #dc3545;
+    --danger-hover: #bb2d3b;
+    --error-color: #ff6b6b;
+    --status-disconnected: #6c757d;
+    --status-connecting: #ffc107;
+    --status-connected: #28a745;
+  }
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .status-indicator.connecting::before {
+    animation: none;
+  }
+  
+  .console-controls .btn {
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .vm-console {
+    border-width: 2px;
+  }
+  
+  .console-controls .btn {
+    border-width: 2px;
+  }
+  
+  .console-output:focus {
+    outline-width: 3px;
+  }
+  
+  .console-command-input:focus {
+    outline-width: 3px;
+  }
+}
