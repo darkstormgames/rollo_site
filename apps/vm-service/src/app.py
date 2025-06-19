@@ -13,6 +13,7 @@ from api.auth import router as auth_router
 from api.example import router as example_router
 from api.vm import router as vm_router
 from api.server import router as server_router
+from api.template import router as template_router
 from websocket.endpoints import router as websocket_router
 
 # Setup logging
@@ -49,6 +50,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 app.include_router(example_router, prefix="/api/example", tags=["examples"])
 app.include_router(vm_router, prefix="/api", tags=["virtual-machines"])
 app.include_router(server_router, prefix="/api", tags=["servers"])
+app.include_router(template_router, prefix="/api", tags=["templates"])
 app.include_router(websocket_router, tags=["websockets"])
 
 
@@ -86,6 +88,7 @@ async def root():
             "authentication": "/api/auth",
             "virtual_machines": "/api/vms",
             "servers": "/api/servers",
+            "templates": "/api/templates",
             "examples": "/api/example"
         },
         "status": "running"

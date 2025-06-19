@@ -1,6 +1,7 @@
 """VM management API endpoints."""
 
 import uuid
+import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
@@ -12,11 +13,18 @@ from models.base import DatabaseSession
 from models.user import User
 from models.virtual_machine import VirtualMachine, VMStatus
 from models.server import Server
+from models.vm_disk import VMDisk
+from models.vm_network import VMNetwork
 from schemas.vm import (
     VMCreate, VMUpdate, VMResize, VMConfigUpdate, VMResponse, VMListResponse,
     VMOperationResponse, VMConfig, MessageResponse, ErrorResponse, VMListFilters,
     ServerInfo, VMResources, VMNetwork
 )
+from schemas.resources import (
+    ResourceLimits, ResizeRequest, HotAddRequest, DiskConfig, NetworkConfig,
+    ResourceValidationResult
+)
+from core.resource_validator import ResourceValidator
 from virtualization.exceptions import VMNotFoundError, VMOperationError, VMStateError
 
 try:
@@ -707,3 +715,371 @@ async def resize_vm(
             }
         }
     )
+
+
+# Resource Management Endpoints
+
+@router.get("/vm/resource-limits", response_model=ResourceLimits)
+@require_permissions(["read"])
+async def get_resource_limits(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get system resource limits and availability."""
+    try:
+        validator = ResourceValidator(db)
+        limits = validator.get_system_limits()
+        return limits
+    except Exception as e:
+        logger.error(f"Error getting resource limits: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve resource limits"
+        )
+
+
+@router.put("/vm/{vm_id}/resources", response_model=VMOperationResponse)
+@require_permissions(["write"])
+async def update_vm_resources(
+    vm_id: int,
+    resize_data: ResizeRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Update VM resource configuration with validation."""
+    vm = db.query(VirtualMachine).filter(VirtualMachine.id == vm_id).first()
+    
+    if not vm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"VM with ID {vm_id} not found"
+        )
+    
+    try:
+        # Validate resources if not validation-only mode
+        validator = ResourceValidator(db)
+        
+        # Build complete resource configuration for validation
+        from schemas.resources import VMResources, CPUConfig, MemoryConfig
+        
+        current_cpu = CPUConfig(
+            cores=vm.cpu_cores,
+            sockets=vm.cpu_sockets,
+            threads=vm.cpu_threads,
+            model=vm.cpu_model,
+            shares=vm.cpu_shares,
+            limit=vm.cpu_limit
+        )
+        
+        current_memory = MemoryConfig(
+            size_mb=vm.memory_mb,
+            hugepages=vm.memory_hugepages,
+            balloon=vm.memory_balloon,
+            shares=vm.memory_shares
+        )
+        
+        # Get current disks and networks
+        current_disks = []
+        for disk in vm.disks:
+            current_disks.append(DiskConfig(
+                name=disk.name,
+                size_gb=disk.size_gb,
+                format=disk.format,
+                pool=disk.pool,
+                bootable=disk.bootable
+            ))
+        
+        current_networks = []
+        for network in vm.networks:
+            current_networks.append(NetworkConfig(
+                name=network.name,
+                type=network.type,
+                bridge=network.bridge,
+                vlan_id=network.vlan_id,
+                ip_address=network.ip_address,
+                mac_address=network.mac_address
+            ))
+        
+        # Use new configuration if provided, otherwise keep current
+        new_cpu = resize_data.cpu if resize_data.cpu else current_cpu
+        new_memory = resize_data.memory if resize_data.memory else current_memory
+        new_disks = resize_data.disks if resize_data.disks else current_disks
+        new_networks = resize_data.network if resize_data.network else current_networks
+        
+        new_resources = VMResources(
+            cpu=new_cpu,
+            memory=new_memory,
+            disks=new_disks,
+            network=new_networks
+        )
+        
+        validation_result = validator.validate_vm_resources(new_resources)
+        
+        if not validation_result.valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid resource configuration: {', '.join(validation_result.errors)}"
+            )
+        
+        # If validation-only mode, return result without applying changes
+        if resize_data.validate_only:
+            return VMOperationResponse(
+                id=vm.id,
+                name=vm.name,
+                operation="validate-resources",
+                status="success",
+                message="Resource configuration is valid",
+                details={
+                    "validation": {
+                        "valid": validation_result.valid,
+                        "warnings": validation_result.warnings
+                    }
+                }
+            )
+        
+        # Check if VM needs to be stopped for certain changes
+        requires_stop = False
+        if resize_data.cpu and (
+            resize_data.cpu.cores != vm.cpu_cores or
+            resize_data.cpu.sockets != vm.cpu_sockets or
+            resize_data.cpu.threads != vm.cpu_threads
+        ):
+            requires_stop = True
+        
+        if resize_data.memory and resize_data.memory.size_mb != vm.memory_mb:
+            requires_stop = True
+        
+        if requires_stop and vm.status == VMStatus.RUNNING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="VM must be stopped to modify CPU cores, sockets, threads, or memory size"
+            )
+        
+        # Apply changes
+        changes = {}
+        
+        if resize_data.cpu:
+            vm.cpu_cores = resize_data.cpu.cores
+            vm.cpu_sockets = resize_data.cpu.sockets
+            vm.cpu_threads = resize_data.cpu.threads
+            vm.cpu_model = resize_data.cpu.model
+            vm.cpu_pinning = json.dumps(resize_data.cpu.pinning) if resize_data.cpu.pinning else None
+            vm.cpu_shares = resize_data.cpu.shares
+            vm.cpu_limit = resize_data.cpu.limit
+            vm.numa_nodes = json.dumps(resize_data.cpu.numa_nodes) if resize_data.cpu.numa_nodes else None
+            changes["cpu"] = resize_data.cpu.model_dump()
+        
+        if resize_data.memory:
+            vm.memory_mb = resize_data.memory.size_mb
+            vm.memory_hugepages = resize_data.memory.hugepages
+            vm.memory_balloon = resize_data.memory.balloon
+            vm.memory_shares = resize_data.memory.shares
+            vm.memory_numa_nodes = json.dumps(resize_data.memory.numa_nodes) if resize_data.memory.numa_nodes else None
+            changes["memory"] = resize_data.memory.model_dump()
+        
+        # Handle disk changes
+        if resize_data.disks:
+            # For now, we'll handle basic disk updates
+            # More complex operations (add/remove) should use dedicated endpoints
+            changes["disks"] = [disk.model_dump() for disk in resize_data.disks]
+        
+        # Handle network changes
+        if resize_data.network:
+            changes["networks"] = [net.model_dump() for net in resize_data.network]
+        
+        db.commit()
+        
+        logger.info(f"VM '{vm.name}' resources updated successfully")
+        
+        return VMOperationResponse(
+            id=vm.id,
+            name=vm.name,
+            operation="update-resources",
+            status="success",
+            message="VM resources updated successfully",
+            details={
+                "changes": changes,
+                "warnings": validation_result.warnings
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating VM resources: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update VM resources"
+        )
+
+
+@router.post("/vm/{vm_id}/disks", response_model=VMOperationResponse)
+@require_permissions(["write"])
+async def add_vm_disk(
+    vm_id: int,
+    disk_config: DiskConfig,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Add a new disk to VM."""
+    vm = db.query(VirtualMachine).options(joinedload(VirtualMachine.disks)).filter(
+        VirtualMachine.id == vm_id
+    ).first()
+    
+    if not vm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"VM with ID {vm_id} not found"
+        )
+    
+    try:
+        # Check if disk name already exists for this VM
+        existing_disk = db.query(VMDisk).filter(
+            VMDisk.vm_id == vm_id,
+            VMDisk.name == disk_config.name
+        ).first()
+        
+        if existing_disk:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Disk with name '{disk_config.name}' already exists for this VM"
+            )
+        
+        # Validate disk configuration
+        validator = ResourceValidator(db)
+        current_disks = [DiskConfig(
+            name=disk.name,
+            size_gb=disk.size_gb,
+            format=disk.format,
+            pool=disk.pool,
+            bootable=disk.bootable
+        ) for disk in vm.disks]
+        current_disks.append(disk_config)
+        
+        validation_result = validator.validate_disk_config(current_disks)
+        
+        if not validation_result.valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid disk configuration: {', '.join(validation_result.errors)}"
+            )
+        
+        # Create new disk
+        new_disk = VMDisk(
+            vm_id=vm_id,
+            name=disk_config.name,
+            size_gb=disk_config.size_gb,
+            format=disk_config.format.value,
+            pool=disk_config.pool or "default",
+            path=disk_config.path,
+            cache=disk_config.cache,
+            discard=disk_config.discard,
+            readonly=disk_config.readonly,
+            bootable=disk_config.bootable
+        )
+        
+        db.add(new_disk)
+        db.commit()
+        db.refresh(new_disk)
+        
+        logger.info(f"Disk '{disk_config.name}' added to VM '{vm.name}'")
+        
+        return VMOperationResponse(
+            id=vm.id,
+            name=vm.name,
+            operation="add-disk",
+            status="success",
+            message=f"Disk '{disk_config.name}' added successfully",
+            details={
+                "disk": {
+                    "id": new_disk.id,
+                    "name": new_disk.name,
+                    "size_gb": new_disk.size_gb,
+                    "format": new_disk.format,
+                    "path": new_disk.full_path
+                }
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding disk to VM: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add disk to VM"
+        )
+
+
+@router.delete("/vm/{vm_id}/disks/{disk_id}", response_model=VMOperationResponse)
+@require_permissions(["write"])
+async def remove_vm_disk(
+    vm_id: int,
+    disk_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Remove a disk from VM."""
+    vm = db.query(VirtualMachine).filter(VirtualMachine.id == vm_id).first()
+    
+    if not vm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"VM with ID {vm_id} not found"
+        )
+    
+    disk = db.query(VMDisk).filter(
+        VMDisk.id == disk_id,
+        VMDisk.vm_id == vm_id
+    ).first()
+    
+    if not disk:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Disk with ID {disk_id} not found for VM {vm_id}"
+        )
+    
+    try:
+        # Check if this is a bootable disk
+        if disk.bootable:
+            # Check if there are other bootable disks
+            other_bootable = db.query(VMDisk).filter(
+                VMDisk.vm_id == vm_id,
+                VMDisk.id != disk_id,
+                VMDisk.bootable == True
+            ).first()
+            
+            if not other_bootable:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot remove the only bootable disk from VM"
+                )
+        
+        disk_name = disk.name
+        db.delete(disk)
+        db.commit()
+        
+        logger.info(f"Disk '{disk_name}' removed from VM '{vm.name}'")
+        
+        return VMOperationResponse(
+            id=vm.id,
+            name=vm.name,
+            operation="remove-disk",
+            status="success",
+            message=f"Disk '{disk_name}' removed successfully",
+            details={
+                "removed_disk": {
+                    "id": disk_id,
+                    "name": disk_name
+                }
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing disk from VM: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove disk from VM"
+        )

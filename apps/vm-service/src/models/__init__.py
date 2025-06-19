@@ -6,6 +6,8 @@ from .role import Role
 from .server import Server
 from .virtual_machine import VirtualMachine
 from .vm_template import VMTemplate
+from .vm_disk import VMDisk
+from .vm_network import VMNetwork
 from .audit_log import AuditLog
 from .server_metrics import ServerMetrics
 from .vm_snapshot import VMSnapshot
@@ -21,6 +23,8 @@ __all__ = [
     "Server", 
     "VirtualMachine",
     "VMTemplate",
+    "VMDisk",
+    "VMNetwork",
     "AuditLog",
     "ServerMetrics",
     "VMSnapshot",
