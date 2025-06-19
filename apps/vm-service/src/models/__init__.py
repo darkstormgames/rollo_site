@@ -13,6 +13,7 @@ from .server_metrics import ServerMetrics
 from .vm_snapshot import VMSnapshot
 from .refresh_token import RefreshToken
 from .password_reset_token import PasswordResetToken
+from .os_image import OSImage
 
 # All models for easy import
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "ServerMetrics",
     "VMSnapshot",
     "RefreshToken",
-    "PasswordResetToken"
+    "PasswordResetToken",
+    "OSImage"
 ]

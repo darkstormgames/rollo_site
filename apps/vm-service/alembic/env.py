@@ -29,7 +29,7 @@ if config.config_file_name is not None:
 # Import all models to ensure they are registered
 from models import (
     User, Role, Server, VirtualMachine, VMTemplate, 
-    AuditLog, ServerMetrics, VMSnapshot
+    AuditLog, ServerMetrics, VMSnapshot, OSImage
 )
 target_metadata = Base.metadata
 
