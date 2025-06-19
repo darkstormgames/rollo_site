@@ -9,6 +9,8 @@ from .vm_template import VMTemplate
 from .audit_log import AuditLog
 from .server_metrics import ServerMetrics
 from .vm_snapshot import VMSnapshot
+from .refresh_token import RefreshToken
+from .password_reset_token import PasswordResetToken
 
 # All models for easy import
 __all__ = [
@@ -21,5 +23,7 @@ __all__ = [
     "VMTemplate",
     "AuditLog",
     "ServerMetrics",
-    "VMSnapshot"
+    "VMSnapshot",
+    "RefreshToken",
+    "PasswordResetToken"
 ]
