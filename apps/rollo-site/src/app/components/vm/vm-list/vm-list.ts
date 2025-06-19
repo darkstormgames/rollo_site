@@ -160,6 +160,13 @@ export class VmList implements OnInit, OnDestroy {
     }
   }
 
+  getSortDirection(column: string): string | null {
+    if (this.sortBy !== column) {
+      return null;
+    }
+    return this.sortDirection;
+  }
+
   startVM(vm: VM): void {
     this.vmService.startVM(vm.id).pipe(
       takeUntil(this.destroy$)

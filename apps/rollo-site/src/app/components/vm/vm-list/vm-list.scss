@@ -1,3 +1,61 @@
+/* Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.filter-label {
+  @extend .sr-only;
+}
+
+/* Focus improvements */
+.sortable:focus {
+  outline: 2px solid #3498db;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus,
+a:focus,
+input:focus,
+select:focus {
+  outline: 2px solid #3498db;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .vm-table {
+    border: 2px solid;
+  }
+  
+  .vm-table th,
+  .vm-table td {
+    border: 1px solid;
+  }
+  
+  button,
+  .btn {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .vm-list-container {
   max-width: 1200px;
   margin: 0 auto;

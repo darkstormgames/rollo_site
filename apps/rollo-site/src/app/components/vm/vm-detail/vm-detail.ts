@@ -5,10 +5,11 @@ import { Subject, takeUntil, interval, switchMap } from 'rxjs';
 
 import { VMService } from '../../../services/vm/vm.service';
 import { VM, VMStatus, VMMetrics } from '../../../models/vm/vm.model';
+import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-spinner.component';
 
 @Component({
   selector: 'app-vm-detail',
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, LoadingSpinnerComponent],
   templateUrl: './vm-detail.html',
   styleUrl: './vm-detail.scss'
 })

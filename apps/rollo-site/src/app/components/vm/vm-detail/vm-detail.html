@@ -246,15 +246,26 @@
 </div>
 
 <!-- Loading State -->
-<div class="loading-state" *ngIf="loading">
-  <div class="loading-spinner"></div>
-  <span>Loading VM details...</span>
+<div class="loading-state" 
+     *ngIf="loading"
+     role="status"
+     aria-live="polite"
+     aria-label="Loading virtual machine details">
+  <app-loading-spinner size="large" [showText]="true" text="Loading VM details..."></app-loading-spinner>
 </div>
 
 <!-- Error State -->
-<div class="error-state" *ngIf="!loading && !vm && error">
-  <div class="error-icon">❌</div>
-  <h2>VM Not Found</h2>
+<div class="error-state" 
+     *ngIf="!loading && !vm && error"
+     role="alert"
+     aria-live="assertive">
+  <div class="error-icon" aria-hidden="true">❌</div>
+  <h2 id="error-title">VM Not Found</h2>
   <p>{{ error }}</p>
-  <a routerLink="/dashboard/vms" class="btn btn-primary">Back to VM List</a>
+  <a routerLink="/dashboard/vms" 
+     class="btn btn-primary"
+     role="button"
+     aria-describedby="error-title">
+    Back to VM List
+  </a>
 </div>
