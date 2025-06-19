@@ -1,0 +1,37 @@
+[Unit]
+Description=VM Agent Service
+Documentation=https://github.com/darkstormgames/rollo_site
+After=network.target libvirtd.service
+Wants=network.target
+Requires=libvirtd.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/vm-agent/vm_agent.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+# Environment
+Environment=PYTHONPATH=/opt/vm-agent
+EnvironmentFile=-/etc/vm-agent/agent.env
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/vm-agent /var/lib/vm-agent /tmp
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vm-agent
+
+[Install]
+WantedBy=multi-user.target
