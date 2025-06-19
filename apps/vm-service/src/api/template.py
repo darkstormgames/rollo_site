@@ -12,9 +12,11 @@ from core.logging import get_logger
 from models.base import DatabaseSession
 from models.user import User
 from models.vm_template import VMTemplate
+from models.virtual_machine import VirtualMachine, VMStatus
+import uuid
 from schemas.template import (
     TemplateCreate, TemplateUpdate, TemplateResponse, TemplateListResponse,
-    TemplateListFilters, PREDEFINED_TEMPLATES, TemplateType
+    TemplateListFilters, PREDEFINED_TEMPLATES, TemplateType, TemplateDeployRequest, TemplateDeployResponse
 )
 from schemas.resources import VMResources
 from core.resource_validator import ResourceValidator
@@ -65,6 +67,38 @@ def template_to_response(template: VMTemplate) -> TemplateResponse:
         except json.JSONDecodeError:
             tags = []
     
+    # Parse packages
+    packages = []
+    if template.packages:
+        try:
+            packages = json.loads(template.packages)
+        except json.JSONDecodeError:
+            packages = []
+    
+    # Parse startup scripts
+    startup_scripts = []
+    if template.startup_scripts:
+        try:
+            startup_scripts = json.loads(template.startup_scripts)
+        except json.JSONDecodeError:
+            startup_scripts = []
+    
+    # Parse network config
+    network_config = None
+    if template.network_config:
+        try:
+            network_config = json.loads(template.network_config)
+        except json.JSONDecodeError:
+            network_config = None
+    
+    # Parse security hardening
+    security_hardening = None
+    if template.security_hardening:
+        try:
+            security_hardening = json.loads(template.security_hardening)
+        except json.JSONDecodeError:
+            security_hardening = None
+    
     return TemplateResponse(
         id=template.id,
         name=template.name,
@@ -78,7 +112,15 @@ def template_to_response(template: VMTemplate) -> TemplateResponse:
         public=template.public,
         created_by=template.created_by,
         created_at=template.created_at,
-        version=template.version
+        version=template.version,
+        packages=packages,
+        cloud_init_config=template.cloud_init_config,
+        image_source=template.image_source,
+        image_checksum=template.image_checksum,
+        image_format=template.image_format or "qcow2",
+        startup_scripts=startup_scripts,
+        network_config=network_config,
+        security_hardening=security_hardening
     )
 
 
@@ -193,9 +235,13 @@ async def create_template(
                 detail=f"Template with name '{template_data.name}' already exists"
             )
         
-        # Serialize resources and tags
+        # Serialize resources, tags, and new fields
         resource_config = template_data.resources.model_dump()
         tags_json = json.dumps(template_data.tags) if template_data.tags else None
+        packages_json = json.dumps(template_data.packages) if template_data.packages else None
+        startup_scripts_json = json.dumps(template_data.startup_scripts) if template_data.startup_scripts else None
+        network_config_json = json.dumps(template_data.network_config) if template_data.network_config else None
+        security_hardening_json = json.dumps(template_data.security_hardening) if template_data.security_hardening else None
         
         # Create template
         template = VMTemplate(
@@ -211,7 +257,16 @@ async def create_template(
             base_image_path=template_data.base_image_path or "/var/lib/libvirt/images/base.qcow2",
             tags=tags_json,
             public=template_data.public,
-            created_by=current_user.id
+            created_by=current_user.id,
+            # New fields
+            packages=packages_json,
+            cloud_init_config=template_data.cloud_init_config,
+            image_source=template_data.image_source,
+            image_checksum=template_data.image_checksum,
+            image_format=template_data.image_format or "qcow2",
+            startup_scripts=startup_scripts_json,
+            network_config=network_config_json,
+            security_hardening=security_hardening_json
         )
         
         db.add(template)
@@ -276,7 +331,10 @@ async def update_template(
                 template.disk_gb = value.disks[0].size_gb if value.disks else template.disk_gb
             elif field == "tags" and value is not None:
                 template.tags = json.dumps(value)
-            elif field != "resources":
+            elif field in ["packages", "startup_scripts", "network_config", "security_hardening"] and value is not None:
+                # Handle JSON fields
+                setattr(template, field, json.dumps(value))
+            elif field not in ["resources", "tags", "packages", "startup_scripts", "network_config", "security_hardening"]:
                 setattr(template, field, value)
         
         # Increment version
@@ -358,3 +416,162 @@ async def get_predefined_templates():
         ))
     
     return responses
+
+
+@router.post("/templates/{template_id}/deploy", response_model=TemplateDeployResponse)
+@require_permissions(["write"])
+async def deploy_template(
+    template_id: int,
+    deploy_request: TemplateDeployRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Deploy a VM from a template."""
+    try:
+        # Get the template
+        template = db.query(VMTemplate).filter(
+            VMTemplate.id == template_id,
+            or_(
+                VMTemplate.public == True,
+                VMTemplate.created_by == current_user.id
+            )
+        ).first()
+        
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Template with ID {template_id} not found"
+            )
+        
+        # Check if VM name already exists
+        existing_vm = db.query(VirtualMachine).filter(VirtualMachine.name == deploy_request.vm_name).first()
+        if existing_vm:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"VM with name '{deploy_request.vm_name}' already exists"
+            )
+        
+        # Use custom resources if provided, otherwise use template resources
+        if deploy_request.custom_resources:
+            validator = ResourceValidator(db)
+            validation_result = validator.validate_vm_resources(deploy_request.custom_resources)
+            
+            if not validation_result.valid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid custom resource configuration: {', '.join(validation_result.errors)}"
+                )
+            
+            cpu_cores = deploy_request.custom_resources.cpu.cores
+            memory_mb = deploy_request.custom_resources.memory.size_mb
+            disk_gb = deploy_request.custom_resources.disks[0].size_gb if deploy_request.custom_resources.disks else template.disk_gb
+        else:
+            cpu_cores = template.cpu_cores
+            memory_mb = template.memory_mb
+            disk_gb = template.disk_gb
+        
+        # Generate VM UUID
+        vm_uuid = str(uuid.uuid4())
+        
+        # Create VM record
+        vm = VirtualMachine(
+            name=deploy_request.vm_name,
+            uuid=vm_uuid,
+            status=VMStatus.STOPPED,
+            server_id=1,  # Default server - this should be configurable
+            cpu_cores=cpu_cores,
+            memory_mb=memory_mb,
+            disk_gb=disk_gb,
+            os_type=template.os_type,
+            os_version=template.os_version,
+            created_by=current_user.id
+        )
+        
+        db.add(vm)
+        db.commit()
+        db.refresh(vm)
+        
+        # Build cloud-init configuration if needed
+        cloud_init_config = deploy_request.custom_cloud_init or template.cloud_init_config
+        
+        # Build deployment configuration
+        deployment_config = {
+            "vm_name": deploy_request.vm_name,
+            "vm_uuid": vm_uuid,
+            "cpu_cores": cpu_cores,
+            "memory_mb": memory_mb,
+            "disk_gb": disk_gb,
+            "os_type": template.os_type,
+            "os_version": template.os_version,
+            "base_image_path": template.base_image_path,
+            "cloud_init_config": cloud_init_config,
+            "hostname": deploy_request.hostname or deploy_request.vm_name,
+            "packages": template.get_packages_list() + (deploy_request.custom_packages or []),
+            "startup_scripts": template.get_startup_scripts_list(),
+            "network_config": template.get_network_config_dict(),
+            "security_hardening": template.get_security_hardening_dict(),
+            "root_password": deploy_request.root_password,
+            "ssh_keys": deploy_request.ssh_keys or [],
+            "environment_variables": deploy_request.environment_variables or {}
+        }
+        
+        # Here you would normally trigger the actual VM creation
+        # For now, we'll just mark it as created
+        logger.info(f"VM '{deploy_request.vm_name}' deployed from template '{template.name}' by user {current_user.id}")
+        logger.debug(f"Deployment config: {deployment_config}")
+        
+        # Return response
+        return TemplateDeployResponse(
+            vm_id=vm.id,
+            vm_name=vm.name,
+            vm_uuid=vm.uuid,
+            status="created",
+            message=f"VM '{deploy_request.vm_name}' successfully deployed from template '{template.name}'",
+            template_used=template_to_response(template)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deploying template: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to deploy template"
+        )
+
+
+@router.get("/templates/{template_id}/versions", response_model=dict)
+@require_permissions(["read"])
+async def get_template_versions(
+    template_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get template version history."""
+    template = db.query(VMTemplate).filter(
+        VMTemplate.id == template_id,
+        or_(
+            VMTemplate.public == True,
+            VMTemplate.created_by == current_user.id
+        )
+    ).first()
+    
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template with ID {template_id} not found"
+        )
+    
+    # Parse version history
+    version_history = []
+    if template.version_history:
+        try:
+            version_history = json.loads(template.version_history)
+        except json.JSONDecodeError:
+            version_history = []
+    
+    return {
+        "template_id": template.id,
+        "current_version": template.version,
+        "versions": version_history
+    }

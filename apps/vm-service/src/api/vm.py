@@ -25,7 +25,20 @@ from schemas.resources import (
     ResourceValidationResult
 )
 from core.resource_validator import ResourceValidator
-from virtualization.exceptions import VMNotFoundError, VMOperationError, VMStateError
+
+logger = get_logger("vm_api")
+
+try:
+    from virtualization.exceptions import VMNotFoundError, VMOperationError, VMStateError
+except ImportError as e:
+    logger.warning(f"Virtualization exceptions not available: {e}")
+    # Define stub exceptions
+    class VMNotFoundError(Exception):
+        pass
+    class VMOperationError(Exception):
+        pass
+    class VMStateError(Exception):
+        pass
 
 try:
     from virtualization.vm_operations import VMOperations
@@ -34,7 +47,6 @@ except ImportError as e:
     logger.warning(f"VM operations not available: {e}")
     vm_ops = None
 
-logger = get_logger("vm_api")
 router = APIRouter()
 
 # Initialize VM operations (graceful handling of missing libvirt)

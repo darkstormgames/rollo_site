@@ -39,6 +39,7 @@ class User(Base):
     servers = relationship("Server", back_populates="owner")
     created_vms = relationship("VirtualMachine", back_populates="created_by_user")
     created_templates = relationship("VMTemplate", back_populates="created_by_user")
+    created_images = relationship("OSImage", back_populates="created_by_user")
     audit_logs = relationship("AuditLog", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
