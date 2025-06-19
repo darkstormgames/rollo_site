@@ -40,6 +40,29 @@ class User(Base):
     created_vms = relationship("VirtualMachine", back_populates="created_by_user")
     created_templates = relationship("VMTemplate", back_populates="created_by_user")
     audit_logs = relationship("AuditLog", back_populates="user")
+    refresh_tokens = relationship("RefreshToken", back_populates="user")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
+    
+    def has_permission(self, permission: str) -> bool:
+        """Check if user has a specific permission through their roles."""
+        for role in self.roles:
+            if role.has_permission(permission):
+                return True
+        return False
+    
+    def has_role(self, role_name: str) -> bool:
+        """Check if user has a specific role."""
+        return any(role.name == role_name for role in self.roles)
+    
+    def get_permissions(self) -> set[str]:
+        """Get all permissions for the user."""
+        permissions = set()
+        for role in self.roles:
+            if role.permissions:
+                for permission, granted in role.permissions.items():
+                    if granted:
+                        permissions.add(permission)
+        return permissions
