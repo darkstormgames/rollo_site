@@ -66,9 +66,13 @@ export class ConsoleService {
    */
   terminateSession(vmId: number, sessionToken?: string): Observable<any> {
     const url = `${this.baseUrl}/api/vm/${vmId}/console/session`;
-    const params = sessionToken ? { session_token: sessionToken } : {};
+    const options: any = {};
     
-    return this.http.delete(url, { params });
+    if (sessionToken) {
+      options.params = { session_token: sessionToken };
+    }
+    
+    return this.http.delete(url, options);
   }
 
   /**
