@@ -1,0 +1,4 @@
+<div class="status-indicator" [attr.data-status]="getStatusType()" [attr.data-size]="size">
+  <span class="status-dot" *ngIf="showDot"></span>
+  <span class="status-text" *ngIf="showText">{{ status }}</span>
+</div>

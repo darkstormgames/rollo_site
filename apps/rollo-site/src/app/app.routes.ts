@@ -9,6 +9,7 @@ import { AuthGuard, GuestGuard } from './guards/auth.guard';
 import { DashboardLayout } from './components/layout/dashboard-layout/dashboard-layout';
 import { DashboardOverview } from './pages/dashboard-overview/dashboard-overview';
 import { VmList } from './components/vm/vm-list/vm-list';
+import { VmDetail } from './components/vm/vm-detail/vm-detail';
 
 export const routes: Routes = [
   { path: '', component: Home },
@@ -24,6 +25,7 @@ export const routes: Routes = [
     children: [
       { path: '', component: DashboardOverview },
       { path: 'vms', component: VmList },
+      { path: 'vms/:id', component: VmDetail },
       // TODO: Add more dashboard routes as components are created
       { path: 'servers', redirectTo: '' },
       { path: 'monitoring', redirectTo: '' },
