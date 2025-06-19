@@ -1,0 +1,271 @@
+<div class="vm-detail-container" *ngIf="!loading && vm">
+  <!-- Header -->
+  <div class="vm-detail-header">
+    <nav class="breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span class="separator">></span>
+      <a routerLink="/dashboard/vms">Virtual Machines</a>
+      <span class="separator">></span>
+      <span class="current">{{ vm.name }}</span>
+    </nav>
+
+    <div class="vm-title-section">
+      <h1>{{ vm.name }}</h1>
+      <div class="vm-status">
+        <span class="status-badge" [ngClass]="getStatusClass(vm.status)">
+          {{ vm.status }}
+        </span>
+      </div>
+    </div>
+
+    <div class="vm-actions">
+      <button 
+        *ngIf="vm.status === VMStatus.STOPPED" 
+        (click)="startVM()" 
+        class="btn btn-success"
+      >
+        ▶️ Start
+      </button>
+      <button 
+        *ngIf="vm.status === VMStatus.RUNNING" 
+        (click)="stopVM()" 
+        class="btn btn-warning"
+      >
+        ⏹️ Stop
+      </button>
+      <button 
+        *ngIf="vm.status === VMStatus.RUNNING" 
+        (click)="pauseVM()" 
+        class="btn btn-info"
+      >
+        ⏸️ Pause
+      </button>
+      <button 
+        *ngIf="vm.status === VMStatus.RUNNING" 
+        (click)="rebootVM()" 
+        class="btn btn-warning"
+      >
+        🔄 Reboot
+      </button>
+      <a 
+        *ngIf="vm.status === VMStatus.RUNNING && vm.vnc_port" 
+        [routerLink]="['/dashboard/vms', vm.id, 'console']" 
+        class="btn btn-info"
+      >
+        🖥️ Console
+      </a>
+      <a 
+        [routerLink]="['/dashboard/vms', vm.id, 'edit']" 
+        class="btn btn-secondary"
+      >
+        ✏️ Edit
+      </a>
+      <button 
+        (click)="cloneVM()" 
+        class="btn btn-secondary"
+      >
+        📋 Clone
+      </button>
+      <button 
+        (click)="deleteVM()" 
+        class="btn btn-danger"
+      >
+        🗑️ Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div class="error-message" *ngIf="error">
+    <span class="error-icon">⚠️</span>
+    {{ error }}
+    <button (click)="loadVM()" class="btn btn-link">Retry</button>
+  </div>
+
+  <!-- VM Details Grid -->
+  <div class="vm-details-grid">
+    
+    <!-- Basic Information -->
+    <div class="detail-card">
+      <h2>Basic Information</h2>
+      <div class="detail-content">
+        <div class="detail-row">
+          <label>Name:</label>
+          <span>{{ vm.name }}</span>
+        </div>
+        <div class="detail-row">
+          <label>UUID:</label>
+          <span class="uuid">{{ vm.uuid }}</span>
+        </div>
+        <div class="detail-row">
+          <label>Status:</label>
+          <span class="status-badge" [ngClass]="getStatusClass(vm.status)">
+            {{ vm.status }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <label>OS Type:</label>
+          <span class="os-type">{{ vm.os_type }}</span>
+        </div>
+        <div class="detail-row" *ngIf="vm.os_version">
+          <label>OS Version:</label>
+          <span>{{ vm.os_version }}</span>
+        </div>
+        <div class="detail-row">
+          <label>Created:</label>
+          <span>{{ vm.created_at | date:'medium' }}</span>
+        </div>
+        <div class="detail-row">
+          <label>Updated:</label>
+          <span>{{ vm.updated_at | date:'medium' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resource Allocation -->
+    <div class="detail-card">
+      <h2>Resource Allocation</h2>
+      <div class="detail-content">
+        <div class="resource-item">
+          <div class="resource-header">
+            <span class="resource-icon">🔥</span>
+            <label>CPU Cores</label>
+          </div>
+          <div class="resource-value">{{ vm.resources.cpu_cores }}</div>
+          <div class="resource-usage" *ngIf="metrics?.cpu_usage_percent != null">
+            <div class="usage-bar">
+              <div class="usage-fill" [style.width.%]="metrics!.cpu_usage_percent"></div>
+            </div>
+            <span class="usage-text">{{ metrics!.cpu_usage_percent }}% used</span>
+          </div>
+        </div>
+
+        <div class="resource-item">
+          <div class="resource-header">
+            <span class="resource-icon">💾</span>
+            <label>Memory</label>
+          </div>
+          <div class="resource-value">{{ formatMemory(vm.resources.memory_mb) }}</div>
+          <div class="resource-usage" *ngIf="metrics?.memory_used_mb != null">
+            <div class="usage-bar">
+              <div class="usage-fill" [style.width.%]="getMemoryUsagePercentage()"></div>
+            </div>
+            <span class="usage-text">
+              {{ formatMemory(metrics!.memory_used_mb || 0) }} used ({{ getMemoryUsagePercentage() }}%)
+            </span>
+          </div>
+        </div>
+
+        <div class="resource-item">
+          <div class="resource-header">
+            <span class="resource-icon">💿</span>
+            <label>Storage</label>
+          </div>
+          <div class="resource-value">{{ vm.resources.disk_gb }} GB</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Server Information -->
+    <div class="detail-card">
+      <h2>Server Information</h2>
+      <div class="detail-content">
+        <div class="detail-row">
+          <label>Hostname:</label>
+          <span>{{ vm.server.hostname }}</span>
+        </div>
+        <div class="detail-row">
+          <label>IP Address:</label>
+          <span class="ip-address">{{ vm.server.ip_address }}</span>
+        </div>
+        <div class="detail-row">
+          <label>Server Status:</label>
+          <span [class]="'server-status ' + vm.server.status">
+            {{ vm.server.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Network Configuration -->
+    <div class="detail-card">
+      <h2>Network Configuration</h2>
+      <div class="detail-content">
+        <div class="detail-row">
+          <label>Interface:</label>
+          <span>{{ vm.network.interface }}</span>
+        </div>
+        <div class="detail-row" *ngIf="vm.network.ip_address">
+          <label>IP Address:</label>
+          <span class="ip-address">{{ vm.network.ip_address }}</span>
+        </div>
+        <div class="detail-row" *ngIf="vm.network.mac_address">
+          <label>MAC Address:</label>
+          <span class="mac-address">{{ vm.network.mac_address }}</span>
+        </div>
+        <div class="detail-row">
+          <label>Network Type:</label>
+          <span>{{ vm.network.network_type }}</span>
+        </div>
+        <div class="detail-row" *ngIf="vm.vnc_port">
+          <label>VNC Port:</label>
+          <span>{{ vm.vnc_port }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="detail-card" *ngIf="metrics">
+      <h2>Performance Metrics</h2>
+      <div class="detail-content">
+        <div class="metrics-grid">
+          <div class="metric-item" *ngIf="metrics!.network_rx_bytes !== undefined">
+            <div class="metric-label">Network RX</div>
+            <div class="metric-value">{{ formatBytes(metrics!.network_rx_bytes || 0) }}</div>
+          </div>
+          <div class="metric-item" *ngIf="metrics!.network_tx_bytes !== undefined">
+            <div class="metric-label">Network TX</div>
+            <div class="metric-value">{{ formatBytes(metrics!.network_tx_bytes || 0) }}</div>
+          </div>
+          <div class="metric-item" *ngIf="metrics!.disk_read_bytes !== undefined">
+            <div class="metric-label">Disk Read</div>
+            <div class="metric-value">{{ formatBytes(metrics!.disk_read_bytes || 0) }}</div>
+          </div>
+          <div class="metric-item" *ngIf="metrics!.disk_write_bytes !== undefined">
+            <div class="metric-label">Disk Write</div>
+            <div class="metric-value">{{ formatBytes(metrics!.disk_write_bytes || 0) }}</div>
+          </div>
+        </div>
+        <div class="metrics-timestamp" *ngIf="metrics!.timestamp">
+          <small>Last updated: {{ metrics!.timestamp | date:'medium' }}</small>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Loading State -->
+<div class="loading-state" 
+     *ngIf="loading"
+     role="status"
+     aria-live="polite"
+     aria-label="Loading virtual machine details">
+  <app-loading-spinner size="large" [showText]="true" text="Loading VM details..."></app-loading-spinner>
+</div>
+
+<!-- Error State -->
+<div class="error-state" 
+     *ngIf="!loading && !vm && error"
+     role="alert"
+     aria-live="assertive">
+  <div class="error-icon" aria-hidden="true">❌</div>
+  <h2 id="error-title">VM Not Found</h2>
+  <p>{{ error }}</p>
+  <a routerLink="/dashboard/vms" 
+     class="btn btn-primary"
+     role="button"
+     aria-describedby="error-title">
+    Back to VM List
+  </a>
+</div>

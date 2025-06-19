@@ -1,0 +1,223 @@
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidenav {
+  width: 250px;
+  background-color: #2c3e50;
+  color: white;
+  transform: translateX(-250px);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  overflow-y: auto;
+
+  &.sidenav-open {
+    transform: translateX(0);
+  }
+
+  .sidenav-header {
+    padding: 1rem;
+    border-bottom: 1px solid #34495e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .menu-toggle {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 4px;
+
+      &:hover {
+        background-color: #34495e;
+      }
+    }
+  }
+
+  .nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      border-bottom: 1px solid #34495e;
+
+      a {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        color: #bdc3c7;
+        text-decoration: none;
+        transition: all 0.3s ease;
+
+        .nav-icon {
+          margin-right: 0.75rem;
+          font-size: 1.1rem;
+          width: 20px;
+          text-align: center;
+        }
+
+        .nav-text {
+          font-size: 0.95rem;
+        }
+
+        &:hover,
+        &.active {
+          background-color: #34495e;
+          color: #3498db;
+        }
+
+        &.active {
+          border-right: 3px solid #3498db;
+          background-color: #34495e;
+        }
+      }
+    }
+  }
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
+
+  &.main-content-shifted {
+    margin-left: 250px;
+  }
+
+  .top-header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #ecf0f1;
+    padding: 0 1rem;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 999;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+
+      .menu-toggle.mobile-only {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        margin-right: 1rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+
+        &:hover {
+          background-color: #ecf0f1;
+        }
+      }
+
+      .breadcrumb {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+    }
+
+    .header-right {
+      .user-profile {
+        display: flex;
+        align-items: center;
+
+        .user-name {
+          margin-right: 0.75rem;
+          font-weight: 500;
+          color: #2c3e50;
+        }
+
+        .profile-btn {
+          background: none;
+          border: none;
+          font-size: 1.2rem;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 50%;
+          transition: background-color 0.3s ease;
+
+          &:hover {
+            background-color: #ecf0f1;
+          }
+        }
+      }
+    }
+  }
+
+  .content-area {
+    flex: 1;
+    padding: 2rem;
+    background-color: #f8f9fa;
+    overflow-y: auto;
+  }
+}
+
+// Mobile responsiveness
+@media (max-width: 768px) {
+  .sidenav {
+    width: 280px;
+    transform: translateX(-280px);
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+
+    .top-header {
+      .header-left {
+        .menu-toggle.mobile-only {
+          display: block;
+        }
+      }
+    }
+  }
+
+  .sidenav.sidenav-open + .main-content {
+    transform: translateX(280px);
+  }
+}
+
+// Dark theme support
+@media (prefers-color-scheme: dark) {
+  .main-content {
+    .top-header {
+      background-color: #34495e;
+      border-bottom-color: #2c3e50;
+      color: #ecf0f1;
+
+      .header-right .user-profile .user-name {
+        color: #ecf0f1;
+      }
+
+      .header-left .menu-toggle.mobile-only:hover,
+      .header-right .profile-btn:hover {
+        background-color: #2c3e50;
+      }
+    }
+
+    .content-area {
+      background-color: #2c3e50;
+      color: #ecf0f1;
+    }
+  }
+}

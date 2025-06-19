@@ -1,0 +1,209 @@
+<div class="monitoring-dashboard">
+  <div class="dashboard-header">
+    <h1>System Monitoring</h1>
+    <p>Real-time overview of your virtual infrastructure</p>
+  </div>
+
+  <!-- Loading State -->
+  <app-loading-spinner 
+    *ngIf="loading" 
+    size="large" 
+    message="Loading monitoring data..."
+  ></app-loading-spinner>
+
+  <!-- Error State -->
+  <div class="error-message" *ngIf="error && !loading">
+    <span class="error-icon">⚠️</span>
+    {{ error }}
+    <button (click)="loadData()" class="btn btn-link">Retry</button>
+  </div>
+
+  <!-- System Overview -->
+  <div class="system-overview" *ngIf="systemMetrics && !loading">
+    <div class="overview-cards">
+      <div class="metric-card">
+        <div class="metric-header">
+          <h3>Virtual Machines</h3>
+          <span class="metric-icon">💻</span>
+        </div>
+        <div class="metric-value">{{ systemMetrics.totalVMs }}</div>
+        <div class="metric-detail">
+          <span class="running">{{ systemMetrics.runningVMs }} Running</span>
+          <span class="stopped">{{ systemMetrics.totalVMs - systemMetrics.runningVMs }} Stopped</span>
+        </div>
+        <div class="metric-chart">
+          <div class="usage-bar">
+            <div 
+              class="usage-fill" 
+              [style.width.%]="(systemMetrics.runningVMs / systemMetrics.totalVMs) * 100"
+              [style.background-color]="getResourceUsageColor((systemMetrics.runningVMs / systemMetrics.totalVMs) * 100)"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <h3>CPU Usage</h3>
+          <span class="metric-icon">🔥</span>
+        </div>
+        <div class="metric-value">{{ systemMetrics.averageCPUUsage }}%</div>
+        <div class="metric-detail">
+          <span>{{ systemMetrics.totalCPU }} Total Cores</span>
+        </div>
+        <div class="metric-chart">
+          <div class="usage-bar">
+            <div 
+              class="usage-fill" 
+              [style.width.%]="systemMetrics.averageCPUUsage"
+              [style.background-color]="getResourceUsageColor(systemMetrics.averageCPUUsage)"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <h3>Memory Usage</h3>
+          <span class="metric-icon">💾</span>
+        </div>
+        <div class="metric-value">{{ systemMetrics.averageMemoryUsage }}%</div>
+        <div class="metric-detail">
+          <span>{{ formatMemory(systemMetrics.totalMemoryMB) }} Total</span>
+        </div>
+        <div class="metric-chart">
+          <div class="usage-bar">
+            <div 
+              class="usage-fill" 
+              [style.width.%]="systemMetrics.averageMemoryUsage"
+              [style.background-color]="getResourceUsageColor(systemMetrics.averageMemoryUsage)"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <h3>Storage</h3>
+          <span class="metric-icon">💿</span>
+        </div>
+        <div class="metric-value">{{ systemMetrics.totalStorageGB }}</div>
+        <div class="metric-detail">
+          <span>GB Allocated</span>
+        </div>
+        <div class="metric-chart">
+          <div class="storage-indicator">
+            <div class="storage-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VM List with Metrics -->
+  <div class="vm-monitoring-list" *ngIf="!loading && vms.length > 0">
+    <div class="section-header">
+      <h2>Virtual Machine Metrics</h2>
+      <div class="refresh-info">
+        <small>Auto-refreshes every 30 seconds</small>
+      </div>
+    </div>
+
+    <div class="vm-metrics-grid">
+      <div class="vm-metric-card" *ngFor="let vm of vms">
+        <div class="vm-card-header">
+          <div class="vm-info">
+            <h4>
+              <a [routerLink]="['/dashboard/vms', vm.id]">{{ vm.name }}</a>
+            </h4>
+            <span class="vm-server">{{ vm.server.hostname }}</span>
+          </div>
+          <app-status-indicator 
+            [status]="vm.status" 
+            size="small"
+          ></app-status-indicator>
+        </div>
+
+        <div class="vm-resources">
+          <div class="resource-item">
+            <span class="resource-label">CPU</span>
+            <div class="resource-info">
+              <span class="resource-value">{{ vm.resources.cpu_cores }} cores</span>
+              <div class="resource-usage" *ngIf="getVMMetrics(vm.id)?.cpu_usage_percent as cpuUsage">
+                <div class="usage-bar">
+                  <div 
+                    class="usage-fill" 
+                    [style.width.%]="cpuUsage"
+                    [style.background-color]="getResourceUsageColor(cpuUsage)"
+                  ></div>
+                </div>
+                <span class="usage-text">{{ cpuUsage }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="resource-item">
+            <span class="resource-label">Memory</span>
+            <div class="resource-info">
+              <span class="resource-value">{{ formatMemory(vm.resources.memory_mb) }}</span>
+              <div class="resource-usage" *ngIf="getVMMetrics(vm.id)?.memory_usage_percent as memUsage">
+                <div class="usage-bar">
+                  <div 
+                    class="usage-fill" 
+                    [style.width.%]="memUsage"
+                    [style.background-color]="getResourceUsageColor(memUsage)"
+                  ></div>
+                </div>
+                <span class="usage-text">{{ memUsage }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="resource-item">
+            <span class="resource-label">Storage</span>
+            <div class="resource-info">
+              <span class="resource-value">{{ vm.resources.disk_gb }} GB</span>
+            </div>
+          </div>
+
+          <!-- Network & Disk I/O -->
+          <div class="io-metrics" *ngIf="getVMMetrics(vm.id) as metrics">
+            <div class="io-item" *ngIf="metrics.network_rx_bytes !== undefined">
+              <span class="io-label">Network RX</span>
+              <span class="io-value">{{ formatBytes(metrics.network_rx_bytes || 0) }}</span>
+            </div>
+            <div class="io-item" *ngIf="metrics.network_tx_bytes !== undefined">
+              <span class="io-label">Network TX</span>
+              <span class="io-value">{{ formatBytes(metrics.network_tx_bytes || 0) }}</span>
+            </div>
+            <div class="io-item" *ngIf="metrics.disk_read_bytes !== undefined">
+              <span class="io-label">Disk Read</span>
+              <span class="io-value">{{ formatBytes(metrics.disk_read_bytes || 0) }}</span>
+            </div>
+            <div class="io-item" *ngIf="metrics.disk_write_bytes !== undefined">
+              <span class="io-label">Disk Write</span>
+              <span class="io-value">{{ formatBytes(metrics.disk_write_bytes || 0) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="vm-card-footer">
+          <div class="last-updated" *ngIf="getVMMetrics(vm.id)?.timestamp as timestamp">
+            <small>Updated: {{ timestamp | date:'short' }}</small>
+          </div>
+          <div class="vm-actions">
+            <a [routerLink]="['/dashboard/vms', vm.id]" class="btn btn-sm btn-secondary">Details</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!loading && vms.length === 0">
+    <div class="empty-icon">📊</div>
+    <h3>No VMs to Monitor</h3>
+    <p>Create some virtual machines to see monitoring data here.</p>
+    <a routerLink="/dashboard/vms/create" class="btn btn-primary">Create VM</a>
+  </div>
+</div>

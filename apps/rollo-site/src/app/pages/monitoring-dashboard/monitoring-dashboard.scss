@@ -1,0 +1,505 @@
+.monitoring-dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+  text-align: center;
+
+  h1 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+    font-size: 2.5rem;
+    font-weight: 300;
+  }
+
+  p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 1.1rem;
+  }
+}
+
+.error-message {
+  background-color: #e74c3c;
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  .btn-link {
+    color: white;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-left: auto;
+    font-size: 1rem;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+}
+
+.system-overview {
+  margin-bottom: 3rem;
+
+  .overview-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    border: 1px solid #ecf0f1;
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+
+      h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .metric-icon {
+        font-size: 2rem;
+        opacity: 0.7;
+      }
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-detail {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+
+      .running {
+        color: #27ae60;
+        font-weight: 500;
+      }
+
+      .stopped {
+        color: #e74c3c;
+        font-weight: 500;
+      }
+    }
+
+    .metric-chart {
+      .usage-bar {
+        width: 100%;
+        height: 8px;
+        background-color: #ecf0f1;
+        border-radius: 4px;
+        overflow: hidden;
+
+        .usage-fill {
+          height: 100%;
+          transition: width 0.3s ease;
+          border-radius: 4px;
+        }
+      }
+
+      .storage-indicator {
+        display: flex;
+        align-items: center;
+
+        .storage-bar {
+          flex: 1;
+          height: 8px;
+          background: linear-gradient(90deg, #3498db, #2ecc71);
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+}
+
+.vm-monitoring-list {
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+
+    h2 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    .refresh-info {
+      color: #7f8c8d;
+      font-style: italic;
+    }
+  }
+
+  .vm-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .vm-metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    border: 1px solid #ecf0f1;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .vm-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.5rem;
+
+      .vm-info {
+        h4 {
+          margin: 0 0 0.25rem 0;
+          font-size: 1.2rem;
+
+          a {
+            color: #2c3e50;
+            text-decoration: none;
+
+            &:hover {
+              color: #3498db;
+              text-decoration: underline;
+            }
+          }
+        }
+
+        .vm-server {
+          font-size: 0.9rem;
+          color: #7f8c8d;
+        }
+      }
+    }
+
+    .vm-resources {
+      .resource-item {
+        margin-bottom: 1rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .resource-label {
+          display: block;
+          font-size: 0.85rem;
+          color: #7f8c8d;
+          font-weight: 500;
+          margin-bottom: 0.25rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .resource-info {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .resource-value {
+            font-weight: 600;
+            color: #2c3e50;
+          }
+
+          .resource-usage {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            margin-left: 1rem;
+
+            .usage-bar {
+              flex: 1;
+              height: 6px;
+              background-color: #ecf0f1;
+              border-radius: 3px;
+              overflow: hidden;
+
+              .usage-fill {
+                height: 100%;
+                transition: width 0.3s ease;
+                border-radius: 3px;
+              }
+            }
+
+            .usage-text {
+              font-size: 0.8rem;
+              color: #7f8c8d;
+              font-weight: 500;
+              min-width: 35px;
+              text-align: right;
+            }
+          }
+        }
+      }
+
+      .io-metrics {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #ecf0f1;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+
+        .io-item {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.8rem;
+
+          .io-label {
+            color: #7f8c8d;
+          }
+
+          .io-value {
+            color: #2c3e50;
+            font-weight: 500;
+          }
+        }
+      }
+    }
+
+    .vm-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #ecf0f1;
+
+      .last-updated {
+        color: #7f8c8d;
+        font-style: italic;
+      }
+
+      .vm-actions {
+        .btn {
+          padding: 0.25rem 0.75rem;
+          font-size: 0.8rem;
+        }
+      }
+    }
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #7f8c8d;
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+  }
+
+  p {
+    margin: 0 0 1.5rem 0;
+  }
+}
+
+// Button styles
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  &.btn-primary {
+    background-color: #3498db;
+    color: white;
+    border-color: #3498db;
+
+    &:hover {
+      background-color: #2980b9;
+      border-color: #2980b9;
+    }
+  }
+
+  &.btn-secondary {
+    background-color: #95a5a6;
+    color: white;
+    border-color: #95a5a6;
+
+    &:hover {
+      background-color: #7f8c8d;
+      border-color: #7f8c8d;
+    }
+  }
+
+  &.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+}
+
+// Mobile responsiveness
+@media (max-width: 768px) {
+  .dashboard-header {
+    h1 {
+      font-size: 2rem;
+    }
+  }
+
+  .system-overview .overview-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .vm-monitoring-list {
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .vm-metrics-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .vm-metric-card {
+      .vm-resources .io-metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .vm-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .vm-metric-card .vm-resources .resource-item .resource-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+
+    .resource-usage {
+      margin-left: 0;
+    }
+  }
+}
+
+// Dark theme support
+@media (prefers-color-scheme: dark) {
+  .dashboard-header {
+    h1 {
+      color: #ecf0f1;
+    }
+
+    p {
+      color: #bdc3c7;
+    }
+  }
+
+  .system-overview .metric-card,
+  .vm-monitoring-list .vm-metric-card {
+    background: #34495e;
+    border-color: #2c3e50;
+
+    .metric-header h3,
+    .metric-value,
+    .vm-info h4 a {
+      color: #ecf0f1;
+    }
+
+    .resource-item {
+      .resource-label {
+        color: #bdc3c7;
+      }
+
+      .resource-value {
+        color: #ecf0f1;
+      }
+
+      .resource-usage .usage-text {
+        color: #bdc3c7;
+      }
+    }
+
+    .io-metrics .io-item {
+      .io-label {
+        color: #bdc3c7;
+      }
+
+      .io-value {
+        color: #ecf0f1;
+      }
+    }
+
+    .vm-card-footer {
+      border-top-color: #2c3e50;
+
+      .last-updated {
+        color: #bdc3c7;
+      }
+    }
+
+    .vm-info .vm-server {
+      color: #bdc3c7;
+    }
+
+    .metric-chart .usage-bar,
+    .resource-usage .usage-bar {
+      background-color: #2c3e50;
+    }
+  }
+
+  .section-header h2 {
+    color: #ecf0f1;
+  }
+
+  .refresh-info {
+    color: #bdc3c7;
+  }
+
+  .empty-state {
+    color: #bdc3c7;
+
+    h3 {
+      color: #ecf0f1;
+    }
+  }
+}

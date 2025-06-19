@@ -1,0 +1,399 @@
+<div class="vm-create-container">
+  <!-- Header -->
+  <div class="create-header">
+    <nav class="breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span class="separator">></span>
+      <a routerLink="/dashboard/vms">Virtual Machines</a>
+      <span class="separator">></span>
+      <span class="current">Create VM</span>
+    </nav>
+
+    <h1>Create Virtual Machine</h1>
+    
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+      <div class="steps">
+        <div 
+          *ngFor="let step of [1, 2, 3, 4]; let i = index" 
+          class="step" 
+          [class.active]="currentStep === step"
+          [class.completed]="currentStep > step"
+        >
+          <div class="step-number">{{ step }}</div>
+          <div class="step-title">{{ getStepTitle(step) }}</div>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="((currentStep - 1) / (totalSteps - 1)) * 100"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div class="error-message" *ngIf="error">
+    <span class="error-icon">⚠️</span>
+    {{ error }}
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="loading-spinner"></div>
+    <span>Loading servers...</span>
+  </div>
+
+  <!-- Form Steps -->
+  <form #vmForm="ngForm" class="vm-create-form" *ngIf="!loading">
+    
+    <!-- Step 1: Basic Information -->
+    <div class="form-step" *ngIf="currentStep === 1">
+      <div class="step-content">
+        <h2>Basic Information</h2>
+        <p>Provide the basic details for your virtual machine.</p>
+
+        <div class="form-group">
+          <label for="vmName">VM Name *</label>
+          <input 
+            type="text" 
+            id="vmName"
+            name="vmName"
+            [(ngModel)]="formData.name"
+            required
+            placeholder="Enter VM name"
+            class="form-control"
+            [class.error]="vmForm.submitted && !formData.name"
+          >
+          <small class="form-help">Choose a unique, descriptive name for your VM</small>
+        </div>
+
+        <div class="form-group">
+          <label for="server">Target Server *</label>
+          <select 
+            id="server"
+            name="server"
+            [(ngModel)]="formData.server_id"
+            required
+            class="form-control"
+            [class.error]="vmForm.submitted && !formData.server_id"
+          >
+            <option value="">Select a server</option>
+            <option *ngFor="let server of servers" [value]="server.id">
+              {{ server.hostname }} ({{ server.ip_address }})
+            </option>
+          </select>
+          <small class="form-help">Choose the physical server to host this VM</small>
+        </div>
+
+        <div class="server-info" *ngIf="getSelectedServer() as server">
+          <h4>Server Details</h4>
+          <div class="server-detail">
+            <strong>{{ server.hostname }}</strong>
+            <span class="server-status online">{{ server.status }}</span>
+          </div>
+          <div class="server-detail">
+            <span>IP: {{ server.ip_address }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Operating System -->
+    <div class="form-step" *ngIf="currentStep === 2">
+      <div class="step-content">
+        <h2>Operating System</h2>
+        <p>Select the operating system for your virtual machine.</p>
+
+        <div class="form-group">
+          <label>OS Type *</label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input 
+                type="radio" 
+                name="osType" 
+                [value]="OSType.LINUX"
+                [(ngModel)]="formData.os_type"
+                (change)="onOSTypeChange()"
+              >
+              <span class="radio-label">
+                <span class="os-icon">🐧</span>
+                Linux
+              </span>
+            </label>
+            <label class="radio-option">
+              <input 
+                type="radio" 
+                name="osType" 
+                [value]="OSType.WINDOWS"
+                [(ngModel)]="formData.os_type"
+                (change)="onOSTypeChange()"
+              >
+              <span class="radio-label">
+                <span class="os-icon">🪟</span>
+                Windows
+              </span>
+            </label>
+            <label class="radio-option">
+              <input 
+                type="radio" 
+                name="osType" 
+                [value]="OSType.OTHER"
+                [(ngModel)]="formData.os_type"
+                (change)="onOSTypeChange()"
+              >
+              <span class="radio-label">
+                <span class="os-icon">💿</span>
+                Other
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="formData.os_type">
+          <label for="osVersion">OS Version *</label>
+          <select 
+            id="osVersion"
+            name="osVersion"
+            [(ngModel)]="formData.os_version"
+            required
+            class="form-control"
+          >
+            <option value="">Select OS version</option>
+            <option *ngFor="let version of getAvailableOSVersions()" [value]="version">
+              {{ version }}
+            </option>
+          </select>
+          <small class="form-help">Choose the specific OS version or distribution</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Resources -->
+    <div class="form-step" *ngIf="currentStep === 3">
+      <div class="step-content">
+        <h2>Resource Allocation</h2>
+        <p>Configure CPU, memory, and storage resources for your VM.</p>
+
+        <div class="resource-grid">
+          <div class="form-group">
+            <label for="cpuCores">CPU Cores</label>
+            <select 
+              id="cpuCores"
+              name="cpuCores"
+              [(ngModel)]="formData.cpu_cores"
+              class="form-control"
+            >
+              <option *ngFor="let cpu of cpuOptions" [value]="cpu">
+                {{ cpu }} {{ cpu === 1 ? 'Core' : 'Cores' }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="memory">Memory (RAM)</label>
+            <select 
+              id="memory"
+              name="memory"
+              [(ngModel)]="formData.memory_mb"
+              class="form-control"
+            >
+              <option *ngFor="let memory of memoryOptions" [value]="memory">
+                {{ formatMemory(memory) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="diskSize">Disk Size</label>
+            <select 
+              id="diskSize"
+              name="diskSize"
+              [(ngModel)]="formData.disk_gb"
+              class="form-control"
+            >
+              <option *ngFor="let disk of diskOptions" [value]="disk">
+                {{ disk }} GB
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="resource-summary">
+          <h4>Resource Summary</h4>
+          <div class="summary-item">
+            <span class="resource-icon">🔥</span>
+            <span>{{ formData.cpu_cores }} CPU {{ formData.cpu_cores === 1 ? 'Core' : 'Cores' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="resource-icon">💾</span>
+            <span>{{ formatMemory(formData.memory_mb) }} RAM</span>
+          </div>
+          <div class="summary-item">
+            <span class="resource-icon">💿</span>
+            <span>{{ formData.disk_gb }} GB Storage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Network & Review -->
+    <div class="form-step" *ngIf="currentStep === 4">
+      <div class="step-content">
+        <h2>Network Configuration & Review</h2>
+        <p>Configure network settings and review your VM configuration.</p>
+
+        <div class="form-group">
+          <label>Network Configuration</label>
+          <div class="network-options">
+            <div class="form-group">
+              <label for="interfaceType">Interface Type</label>
+              <select 
+                id="interfaceType"
+                name="interfaceType"
+                [(ngModel)]="formData.network_config.interface_type"
+                class="form-control"
+              >
+                <option value="bridge">Bridge</option>
+                <option value="nat">NAT</option>
+                <option value="host-only">Host Only</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="networkName">Network Name</label>
+              <input 
+                type="text" 
+                id="networkName"
+                name="networkName"
+                [(ngModel)]="formData.network_config.network_name"
+                placeholder="default"
+                class="form-control"
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  name="vncEnabled"
+                  [(ngModel)]="formData.vnc_enabled"
+                >
+                <span class="checkmark"></span>
+                Enable VNC Console
+              </label>
+              <small class="form-help">Allow remote console access via VNC</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration Review -->
+        <div class="configuration-review">
+          <h4>Configuration Review</h4>
+          <div class="review-grid">
+            <div class="review-section">
+              <h5>Basic Information</h5>
+              <div class="review-item">
+                <label>Name:</label>
+                <span>{{ formData.name }}</span>
+              </div>
+              <div class="review-item">
+                <label>Server:</label>
+                <span>{{ getSelectedServer()?.hostname }}</span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <h5>Operating System</h5>
+              <div class="review-item">
+                <label>Type:</label>
+                <span>{{ formData.os_type }}</span>
+              </div>
+              <div class="review-item">
+                <label>Version:</label>
+                <span>{{ formData.os_version }}</span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <h5>Resources</h5>
+              <div class="review-item">
+                <label>CPU:</label>
+                <span>{{ formData.cpu_cores }} {{ formData.cpu_cores === 1 ? 'Core' : 'Cores' }}</span>
+              </div>
+              <div class="review-item">
+                <label>Memory:</label>
+                <span>{{ formatMemory(formData.memory_mb) }}</span>
+              </div>
+              <div class="review-item">
+                <label>Storage:</label>
+                <span>{{ formData.disk_gb }} GB</span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <h5>Network</h5>
+              <div class="review-item">
+                <label>Interface:</label>
+                <span>{{ formData.network_config.interface_type }}</span>
+              </div>
+              <div class="review-item">
+                <label>Network:</label>
+                <span>{{ formData.network_config.network_name }}</span>
+              </div>
+              <div class="review-item">
+                <label>VNC:</label>
+                <span>{{ formData.vnc_enabled ? 'Enabled' : 'Disabled' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- Navigation Buttons -->
+  <div class="form-navigation" *ngIf="!loading">
+    <div class="nav-left">
+      <button 
+        type="button" 
+        (click)="cancel()" 
+        class="btn btn-secondary"
+        [disabled]="creating"
+      >
+        Cancel
+      </button>
+    </div>
+    
+    <div class="nav-right">
+      <button 
+        type="button" 
+        (click)="previousStep()" 
+        class="btn btn-secondary"
+        *ngIf="currentStep > 1"
+        [disabled]="creating"
+      >
+        Previous
+      </button>
+      
+      <button 
+        type="button" 
+        (click)="nextStep()" 
+        class="btn btn-primary"
+        *ngIf="currentStep < totalSteps"
+        [disabled]="!canProceedFromStep(currentStep) || creating"
+      >
+        Next
+      </button>
+      
+      <button 
+        type="button" 
+        (click)="createVM()" 
+        class="btn btn-success"
+        *ngIf="currentStep === totalSteps"
+        [disabled]="!canProceedFromStep(currentStep) || creating"
+      >
+        <span *ngIf="creating">Creating...</span>
+        <span *ngIf="!creating">Create VM</span>
+      </button>
+    </div>
+  </div>
+</div>
