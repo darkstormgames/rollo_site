@@ -85,11 +85,11 @@
 
   <!-- Error Message -->
   <div class="error-message" 
-       *ngIf="error"
+       *ngIf="error$ | async as error"
        role="alert"
        aria-live="assertive">
     <span class="error-icon" aria-hidden="true">⚠️</span>
-    {{ error }}
+    {{ error.message }}
     <button (click)="loadVMs()" 
             class="btn btn-link"
             aria-label="Retry loading virtual machines">
@@ -99,7 +99,7 @@
 
   <!-- Loading State -->
   <div class="loading-state" 
-       *ngIf="loading"
+       *ngIf="loading$ | async"
        role="status"
        aria-live="polite">
     <div class="loading-spinner" aria-hidden="true"></div>
@@ -108,7 +108,7 @@
 
   <!-- VM Table -->
   <div class="vm-table-container" 
-       *ngIf="!loading"
+       *ngIf="!(loading$ | async)"
        role="region"
        aria-labelledby="vm-list-title">
     <table class="vm-table" 
@@ -119,8 +119,8 @@
           <th class="checkbox-col" scope="col">
             <input 
               type="checkbox" 
-              [checked]="selectedVMs.size === vms.length && vms.length > 0"
-              [indeterminate]="selectedVMs.size > 0 && selectedVMs.size < vms.length"
+              [checked]="selectedVMs.size === ((vms$ | async)?.length || 0) && ((vms$ | async)?.length || 0) > 0"
+              [indeterminate]="selectedVMs.size > 0 && selectedVMs.size < ((vms$ | async)?.length || 0)"
               (change)="selectAllVMs()"
               aria-label="Select all virtual machines"
             >
@@ -162,7 +162,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let vm of vms; let i = index" 
+        <tr *ngFor="let vm of (vms$ | async); let i = index" 
             class="vm-row"
             role="row"
             [attr.aria-rowindex]="i + 1">
@@ -272,7 +272,7 @@
 
     <!-- Empty State -->
     <div class="empty-state" 
-         *ngIf="vms.length === 0 && !loading"
+         *ngIf="(vms$ | async)?.length === 0 && !(loading$ | async)"
          role="region"
          aria-labelledby="empty-title">
       <div class="empty-icon" aria-hidden="true">💻</div>

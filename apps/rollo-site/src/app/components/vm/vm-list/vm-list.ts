@@ -2,10 +2,21 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subject, takeUntil, debounceTime, distinctUntilChanged, Observable } from 'rxjs';
+import { Store } from '@ngrx/store';
 
 import { VMService } from '../../../services/vm/vm.service';
+import { VMFacade } from '../../../services/vm/vm-facade.service';
 import { VM, VMStatus, VMFilter, OSType } from '../../../models/vm/vm.model';
+import { AppState } from '../../../store/app.state';
+import { vmActions } from '../../../store/vm/vm.actions';
+import { 
+  selectAllVMs, 
+  selectVMLoading, 
+  selectVMError, 
+  selectFilteredVMs,
+  selectVMSummary 
+} from '../../../store/vm/vm.selectors';
 
 @Component({
   selector: 'app-vm-list',
@@ -14,9 +25,12 @@ import { VM, VMStatus, VMFilter, OSType } from '../../../models/vm/vm.model';
   styleUrl: './vm-list.scss'
 })
 export class VmList implements OnInit, OnDestroy {
-  vms: VM[] = [];
-  loading = false;
-  error: string | null = null;
+  // Observables from store
+  vms$: Observable<VM[]>;
+  loading$: Observable<boolean>;
+  error$: Observable<Error | null>;
+  vmSummary$: Observable<any>;
+  
   selectedVMs: Set<number> = new Set();
   
   // Pagination
@@ -44,7 +58,17 @@ export class VmList implements OnInit, OnDestroy {
   OSType = OSType;
   Math = Math;
 
-  constructor(private vmService: VMService) {}
+  constructor(
+    private store: Store<AppState>,
+    private vmService: VMService,
+    private vmFacade: VMFacade
+  ) {
+    // Initialize observables - can use either store directly or facade
+    this.vms$ = this.vmFacade.filteredVMs$; // Using facade
+    this.loading$ = this.store.select(selectVMLoading); // Using store directly
+    this.error$ = this.store.select(selectVMError);
+    this.vmSummary$ = this.store.select(selectVMSummary);
+  }
 
   ngOnInit(): void {
     this.loadVMs();
@@ -57,7 +81,7 @@ export class VmList implements OnInit, OnDestroy {
     ).subscribe(searchTerm => {
       this.searchTerm = searchTerm;
       this.currentPage = 1;
-      this.loadVMs();
+      this.updateFilters();
     });
   }
 
@@ -67,9 +91,6 @@ export class VmList implements OnInit, OnDestroy {
   }
 
   loadVMs(): void {
-    this.loading = true;
-    this.error = null;
-
     const filters: VMFilter = {
       page: this.currentPage,
       per_page: this.perPage
@@ -85,20 +106,25 @@ export class VmList implements OnInit, OnDestroy {
       filters.os_type = this.osTypeFilter;
     }
 
-    this.vmService.getVMs(filters).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (response) => {
-        this.vms = response.vms;
-        this.total = response.total;
-        this.totalPages = response.total_pages;
-        this.loading = false;
-      },
-      error: (error) => {
-        this.error = error.error || 'Failed to load VMs';
-        this.loading = false;
-      }
-    });
+    // Using facade for cleaner API
+    this.vmFacade.loadVMs(filters);
+  }
+
+  updateFilters(): void {
+    const filters: VMFilter = {};
+
+    if (this.searchTerm) {
+      filters.name = this.searchTerm;
+    }
+    if (this.statusFilter) {
+      filters.status = this.statusFilter;
+    }
+    if (this.osTypeFilter) {
+      filters.os_type = this.osTypeFilter;
+    }
+
+    // Using facade for filter updates
+    this.vmFacade.setFilters(filters);
   }
 
   onSearch(event: Event): void {
@@ -108,7 +134,7 @@ export class VmList implements OnInit, OnDestroy {
 
   onFilterChange(): void {
     this.currentPage = 1;
-    this.loadVMs();
+    this.updateFilters();
   }
 
   onSort(column: string): void {
@@ -135,11 +161,14 @@ export class VmList implements OnInit, OnDestroy {
   }
 
   selectAllVMs(): void {
-    if (this.selectedVMs.size === this.vms.length) {
-      this.selectedVMs.clear();
-    } else {
-      this.vms.forEach(vm => this.selectedVMs.add(vm.id));
-    }
+    // Subscribe to vms$ to get current list for selection
+    this.vms$.pipe(takeUntil(this.destroy$)).subscribe(vms => {
+      if (this.selectedVMs.size === vms.length) {
+        this.selectedVMs.clear();
+      } else {
+        vms.forEach(vm => this.selectedVMs.add(vm.id));
+      }
+    });
   }
 
   getStatusClass(status: VMStatus): string {
@@ -168,66 +197,39 @@ export class VmList implements OnInit, OnDestroy {
   }
 
   startVM(vm: VM): void {
-    this.vmService.startVM(vm.id).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {
-        this.loadVMs(); // Refresh the list
-      },
-      error: (error) => {
-        this.error = error.error || 'Failed to start VM';
-      }
-    });
+    this.vmFacade.startVM(vm.id);
   }
 
   stopVM(vm: VM): void {
-    this.vmService.stopVM(vm.id).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {
-        this.loadVMs(); // Refresh the list
-      },
-      error: (error) => {
-        this.error = error.error || 'Failed to stop VM';
-      }
-    });
+    this.vmFacade.stopVM(vm.id);
   }
 
   deleteVM(vm: VM): void {
     if (confirm(`Are you sure you want to delete VM "${vm.name}"?`)) {
-      this.vmService.deleteVM(vm.id).pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
-        next: () => {
-          this.loadVMs(); // Refresh the list
-        },
-        error: (error) => {
-          this.error = error.error || 'Failed to delete VM';
-        }
-      });
+      this.vmFacade.deleteVM(vm.id);
     }
   }
 
   bulkStart(): void {
     if (this.selectedVMs.size === 0) return;
     
-    // Implementation for bulk operations would go here
-    console.log('Bulk start:', Array.from(this.selectedVMs));
+    this.vmFacade.bulkStartVMs(Array.from(this.selectedVMs));
+    this.selectedVMs.clear();
   }
 
   bulkStop(): void {
     if (this.selectedVMs.size === 0) return;
     
-    // Implementation for bulk operations would go here
-    console.log('Bulk stop:', Array.from(this.selectedVMs));
+    this.vmFacade.bulkStopVMs(Array.from(this.selectedVMs));
+    this.selectedVMs.clear();
   }
 
   bulkDelete(): void {
     if (this.selectedVMs.size === 0) return;
     
     if (confirm(`Are you sure you want to delete ${this.selectedVMs.size} VMs?`)) {
-      // Implementation for bulk operations would go here
-      console.log('Bulk delete:', Array.from(this.selectedVMs));
+      this.vmFacade.bulkDeleteVMs(Array.from(this.selectedVMs));
+      this.selectedVMs.clear();
     }
   }
 }
