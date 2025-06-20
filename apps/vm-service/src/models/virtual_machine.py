@@ -79,6 +79,7 @@ class VirtualMachine(Base):
     snapshots = relationship("VMSnapshot", back_populates="virtual_machine", cascade="all, delete-orphan")
     disks = relationship("VMDisk", back_populates="virtual_machine", cascade="all, delete-orphan")
     networks = relationship("VMNetwork", back_populates="virtual_machine", cascade="all, delete-orphan")
+    metrics = relationship("VMMetrics", back_populates="vm", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<VirtualMachine(id={self.id}, name='{self.name}', uuid='{self.uuid}', status='{self.status.value}')>"

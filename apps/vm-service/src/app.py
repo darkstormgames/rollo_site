@@ -1,5 +1,6 @@
 """FastAPI application for VM management."""
 
+import asyncio
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ from api.server import router as server_router
 from api.template import router as template_router
 from api.image import router as image_router
 from api.console import router as console_router
+from api.metrics import router as metrics_router
 from websocket.endpoints import router as websocket_router
 
 # Setup logging
@@ -55,6 +57,7 @@ app.include_router(server_router, prefix="/api", tags=["servers"])
 app.include_router(template_router, prefix="/api", tags=["templates"])
 app.include_router(image_router, prefix="/api", tags=["images"])
 app.include_router(console_router, tags=["console"])
+app.include_router(metrics_router, prefix="/api/metrics", tags=["metrics"])
 app.include_router(websocket_router, tags=["websockets"])
 
 
@@ -72,12 +75,24 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Database setup failed: {e}")
         raise
+    
+    # Start background metrics collection (optional)
+    if getattr(settings, 'enable_metrics_collection', False):
+        from services.metrics_collection_service import metrics_collection_service
+        asyncio.create_task(metrics_collection_service.start_collection())
+        logger.info("📊 Background metrics collection started")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown event."""
     logger.info("🛑 VM Management Service shutting down...")
+    
+    # Stop background metrics collection
+    if getattr(settings, 'enable_metrics_collection', False):
+        from services.metrics_collection_service import metrics_collection_service
+        metrics_collection_service.stop_collection()
+        logger.info("📊 Background metrics collection stopped")
 
 
 @app.get("/")
@@ -93,6 +108,7 @@ async def root():
             "virtual_machines": "/api/vms",
             "servers": "/api/servers",
             "templates": "/api/templates",
+            "metrics": "/api/metrics",
             "examples": "/api/example"
         },
         "status": "running"

@@ -10,6 +10,7 @@ from .vm_disk import VMDisk
 from .vm_network import VMNetwork
 from .audit_log import AuditLog
 from .server_metrics import ServerMetrics
+from .vm_metrics import VMMetrics
 from .vm_snapshot import VMSnapshot
 from .refresh_token import RefreshToken
 from .password_reset_token import PasswordResetToken
@@ -28,6 +29,7 @@ __all__ = [
     "VMNetwork",
     "AuditLog",
     "ServerMetrics",
+    "VMMetrics",
     "VMSnapshot",
     "RefreshToken",
     "PasswordResetToken",
