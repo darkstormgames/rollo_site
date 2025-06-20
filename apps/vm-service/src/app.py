@@ -1,5 +1,6 @@
 """FastAPI application for VM management."""
 
+import asyncio
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -74,12 +75,24 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Database setup failed: {e}")
         raise
+    
+    # Start background metrics collection (optional)
+    if getattr(settings, 'enable_metrics_collection', False):
+        from services.metrics_collection_service import metrics_collection_service
+        asyncio.create_task(metrics_collection_service.start_collection())
+        logger.info("📊 Background metrics collection started")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown event."""
     logger.info("🛑 VM Management Service shutting down...")
+    
+    # Stop background metrics collection
+    if getattr(settings, 'enable_metrics_collection', False):
+        from services.metrics_collection_service import metrics_collection_service
+        metrics_collection_service.stop_collection()
+        logger.info("📊 Background metrics collection stopped")
 
 
 @app.get("/")
