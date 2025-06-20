@@ -6,6 +6,7 @@ import { Subject, takeUntil, debounceTime, distinctUntilChanged, Observable } fr
 import { Store } from '@ngrx/store';
 
 import { VMService } from '../../../services/vm/vm.service';
+import { VMFacade } from '../../../services/vm/vm-facade.service';
 import { VM, VMStatus, VMFilter, OSType } from '../../../models/vm/vm.model';
 import { AppState } from '../../../store/app.state';
 import { vmActions } from '../../../store/vm/vm.actions';
@@ -59,11 +60,12 @@ export class VmList implements OnInit, OnDestroy {
 
   constructor(
     private store: Store<AppState>,
-    private vmService: VMService
+    private vmService: VMService,
+    private vmFacade: VMFacade
   ) {
-    // Initialize observables
-    this.vms$ = this.store.select(selectFilteredVMs);
-    this.loading$ = this.store.select(selectVMLoading);
+    // Initialize observables - can use either store directly or facade
+    this.vms$ = this.vmFacade.filteredVMs$; // Using facade
+    this.loading$ = this.store.select(selectVMLoading); // Using store directly
     this.error$ = this.store.select(selectVMError);
     this.vmSummary$ = this.store.select(selectVMSummary);
   }
@@ -104,8 +106,8 @@ export class VmList implements OnInit, OnDestroy {
       filters.os_type = this.osTypeFilter;
     }
 
-    // Dispatch action to load VMs
-    this.store.dispatch(vmActions.loadVMs({ filters }));
+    // Using facade for cleaner API
+    this.vmFacade.loadVMs(filters);
   }
 
   updateFilters(): void {
@@ -121,8 +123,8 @@ export class VmList implements OnInit, OnDestroy {
       filters.os_type = this.osTypeFilter;
     }
 
-    // Update filters in store
-    this.store.dispatch(vmActions.setFilters({ filters }));
+    // Using facade for filter updates
+    this.vmFacade.setFilters(filters);
   }
 
   onSearch(event: Event): void {
@@ -195,40 +197,30 @@ export class VmList implements OnInit, OnDestroy {
   }
 
   startVM(vm: VM): void {
-    this.store.dispatch(vmActions.startVM({ id: vm.id }));
+    this.vmFacade.startVM(vm.id);
   }
 
   stopVM(vm: VM): void {
-    this.store.dispatch(vmActions.stopVM({ id: vm.id }));
+    this.vmFacade.stopVM(vm.id);
   }
 
   deleteVM(vm: VM): void {
     if (confirm(`Are you sure you want to delete VM "${vm.name}"?`)) {
-      this.store.dispatch(vmActions.deleteVM({ id: vm.id }));
+      this.vmFacade.deleteVM(vm.id);
     }
   }
 
   bulkStart(): void {
     if (this.selectedVMs.size === 0) return;
     
-    // Dispatch start actions for all selected VMs
-    Array.from(this.selectedVMs).forEach(vmId => {
-      this.store.dispatch(vmActions.startVM({ id: vmId }));
-    });
-    
-    // Clear selection after starting
+    this.vmFacade.bulkStartVMs(Array.from(this.selectedVMs));
     this.selectedVMs.clear();
   }
 
   bulkStop(): void {
     if (this.selectedVMs.size === 0) return;
     
-    // Dispatch stop actions for all selected VMs
-    Array.from(this.selectedVMs).forEach(vmId => {
-      this.store.dispatch(vmActions.stopVM({ id: vmId }));
-    });
-    
-    // Clear selection after stopping
+    this.vmFacade.bulkStopVMs(Array.from(this.selectedVMs));
     this.selectedVMs.clear();
   }
 
@@ -236,12 +228,7 @@ export class VmList implements OnInit, OnDestroy {
     if (this.selectedVMs.size === 0) return;
     
     if (confirm(`Are you sure you want to delete ${this.selectedVMs.size} VMs?`)) {
-      // Dispatch delete actions for all selected VMs
-      Array.from(this.selectedVMs).forEach(vmId => {
-        this.store.dispatch(vmActions.deleteVM({ id: vmId }));
-      });
-      
-      // Clear selection after deleting
+      this.vmFacade.bulkDeleteVMs(Array.from(this.selectedVMs));
       this.selectedVMs.clear();
     }
   }
