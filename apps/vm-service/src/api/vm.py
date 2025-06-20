@@ -9,6 +9,9 @@ from sqlalchemy import and_, or_
 
 from core.auth import get_current_active_user, require_permissions
 from core.logging import get_logger
+from core.exceptions import (
+    ServerNotFoundException, VMOperationException, ResourceAllocationException
+)
 from models.base import DatabaseSession
 from models.user import User
 from models.virtual_machine import VirtualMachine, VMStatus
@@ -174,9 +177,9 @@ async def create_vm(
         # Verify server exists
         server = db.query(Server).filter(Server.id == vm_data.server_id).first()
         if not server:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Server with ID {vm_data.server_id} not found"
+            raise ServerNotFoundException(
+                server_id=str(vm_data.server_id),
+                details={"requested_server_id": vm_data.server_id}
             )
         
         # Generate UUID for new VM
@@ -222,9 +225,15 @@ async def create_vm(
             db.delete(vm)
             db.commit()
             logger.error(f"Failed to create VM in libvirt: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create VM: {str(e)}"
+            raise VMOperationException(
+                operation="create",
+                vm_name=vm_data.name,
+                reason=str(e),
+                details={
+                    "libvirt_error": str(e),
+                    "vm_uuid": vm_uuid,
+                    "server_id": vm_data.server_id
+                }
             )
         
         # Reload VM with server relationship
@@ -234,13 +243,16 @@ async def create_vm(
         
         return vm_to_response(vm)
         
-    except HTTPException:
+    except (ServerNotFoundException, VMOperationException, ResourceAllocationException):
+        # Re-raise our custom exceptions to be handled by global handler
         raise
     except Exception as e:
-        logger.error(f"Error creating VM: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create VM"
+        logger.error(f"Unexpected error creating VM: {e}")
+        raise VMOperationException(
+            operation="create",
+            vm_name=vm_data.name,
+            reason="An unexpected error occurred",
+            details={"original_error": str(e)}
         )
 
 

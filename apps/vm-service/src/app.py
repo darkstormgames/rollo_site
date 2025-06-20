@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from core.logging import setup_logging, get_logger
 from core.rate_limit import RateLimitMiddleware
+from core.request_id import RequestIDMiddleware
+from core.exception_handlers import setup_exception_handlers
 from models.base import DatabaseSession, create_tables
 from api.health import create_health_router
 from api.auth import router as auth_router
@@ -32,7 +34,7 @@ app = FastAPI(
     debug=settings.debug
 )
 
-# Add CORS middleware
+# Add middlewares
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -40,6 +42,9 @@ app.add_middleware(
     allow_methods=settings.cors_methods,
     allow_headers=settings.cors_headers
 )
+
+# Add request ID middleware
+app.add_middleware(RequestIDMiddleware)
 
 # Add rate limiting middleware
 app.add_middleware(
@@ -59,6 +64,9 @@ app.include_router(image_router, prefix="/api", tags=["images"])
 app.include_router(console_router, tags=["console"])
 app.include_router(metrics_router, prefix="/api/metrics", tags=["metrics"])
 app.include_router(websocket_router, tags=["websockets"])
+
+# Setup exception handlers
+setup_exception_handlers(app)
 
 
 @app.on_event("startup")
