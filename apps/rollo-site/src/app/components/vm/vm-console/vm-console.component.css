@@ -316,3 +316,32 @@
     outline-width: 3px;
   }
 }
+
+/* VNC Display Styles */
+.vnc-display {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--console-bg, #000);
+  overflow: auto;
+  min-height: 400px;
+}
+
+.vnc-display canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border: 1px solid var(--border-color, #333);
+  background: #000;
+  cursor: crosshair;
+}
+
+.vnc-display canvas:focus {
+  outline: 2px solid var(--primary-color, #007bff);
+  outline-offset: 2px;
+}
+
+.session-info {
+  font-weight: 500;
+  color: var(--primary-color, #007bff);
+}

@@ -3,6 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VM } from '../../../models/vm/vm.model';
 import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-spinner.component';
+import { ConsoleService, ConsoleSession, ConsoleConnection } from '../../../services/console/console.service';
+import { Subscription } from 'rxjs';
+
+// Import noVNC
+declare var RFB: any;
 
 @Component({
   selector: 'app-vm-console',
@@ -13,6 +18,13 @@ import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-sp
       <div class="console-header">
         <h3>VM Console - {{ vm?.name }}</h3>
         <div class="console-controls">
+          <button 
+            class="btn btn-secondary"
+            (click)="sendSpecialKey('ctrl-alt-del')"
+            [disabled]="!isConnected"
+            title="Send Ctrl+Alt+Del">
+            <span [attr.aria-hidden]="true">⌨️</span>
+          </button>
           <button 
             class="btn btn-secondary"
             (click)="toggleFullscreen()"
@@ -52,10 +64,21 @@ import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-sp
           </button>
         </div>
 
+        <!-- VNC Display Container -->
+        <div 
+          #vncDisplay 
+          class="vnc-display"
+          [class.hidden]="isConnecting || error"
+          [style.width.px]="displayWidth"
+          [style.height.px]="displayHeight">
+          <!-- noVNC will be attached here -->
+        </div>
+
+        <!-- Fallback text console for non-VNC connections -->
         <div 
           #consoleOutput 
           class="console-output"
-          [class.hidden]="isConnecting || error"
+          [class.hidden]="isConnecting || error || isVncMode"
           role="log"
           aria-live="polite"
           aria-label="Console output"
@@ -65,7 +88,7 @@ import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-sp
           </div>
         </div>
 
-        <div class="console-input" [class.hidden]="isConnecting || error || !isConnected">
+        <div class="console-input" [class.hidden]="isConnecting || error || isVncMode || !isConnected">
           <input 
             #consoleInput
             type="text"
@@ -85,6 +108,9 @@ import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-sp
         </span>
         <span class="connection-info">
           {{ vm?.name }} - {{ vm?.status }}
+          <span *ngIf="currentSession" class="session-info">
+            - {{ currentSession.protocol.toUpperCase() }}
+          </span>
         </span>
       </div>
     </div>
@@ -95,30 +121,49 @@ export class VmConsoleComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() vm: VM | null = null;
   @ViewChild('consoleOutput') consoleOutput!: ElementRef;
   @ViewChild('consoleInput') consoleInput!: ElementRef;
+  @ViewChild('vncDisplay') vncDisplay!: ElementRef;
 
+  // Legacy text console properties
   consoleLines: string[] = [];
   currentCommand = '';
+  
+  // VNC console properties
   isConnected = false;
   isConnecting = false;
   isFullscreen = false;
+  isVncMode = true; // Use VNC by default
   error: string | null = null;
-
-  private websocket: WebSocket | null = null;
+  
+  currentSession: ConsoleSession | null = null;
+  displayWidth = 1024;
+  displayHeight = 768;
+  
+  private rfb: any = null; // noVNC RFB connection
+  private connectionSubscription?: Subscription;
   private commandHistory: string[] = [];
   private historyIndex = -1;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
 
+  constructor(private consoleService: ConsoleService) {}
+
   ngOnInit() {
     if (this.vm) {
       this.connect();
     }
+    
+    // Subscribe to connection status
+    this.connectionSubscription = this.consoleService.connection$.subscribe(
+      (connection: ConsoleConnection) => {
+        this.handleConnectionUpdate(connection);
+      }
+    );
   }
 
   ngAfterViewInit() {
-    // Focus the console input when component loads
+    // Focus handling will depend on connection mode
     setTimeout(() => {
-      if (this.consoleInput?.nativeElement) {
+      if (!this.isVncMode && this.consoleInput?.nativeElement) {
         this.consoleInput.nativeElement.focus();
       }
     }, 100);
@@ -126,6 +171,9 @@ export class VmConsoleComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnDestroy() {
     this.disconnect();
+    if (this.connectionSubscription) {
+      this.connectionSubscription.unsubscribe();
+    }
   }
 
   connect() {
@@ -133,39 +181,114 @@ export class VmConsoleComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.isConnecting = true;
     this.error = null;
-    this.addConsoleLine('Connecting to VM console...');
+    this.reconnectAttempts = 0;
 
-    try {
-      // In a real implementation, this would connect to the actual VM console WebSocket
-      // For now, we'll simulate a connection
-      this.simulateConnection();
-    } catch (error) {
-      this.handleConnectionError('Failed to connect to console');
+    // Request console access
+    this.consoleService.requestAccess(this.vm.id, 'vnc').subscribe({
+      next: (session: ConsoleSession) => {
+        console.log('Console session created:', session);
+        this.currentSession = session;
+        
+        // Connect to VNC WebSocket
+        this.consoleService.connect(session).subscribe({
+          next: (connection: ConsoleConnection) => {
+            console.log('Console connection update:', connection);
+          },
+          error: (error) => {
+            console.error('Console connection error:', error);
+            this.handleConnectionError('Failed to connect to console');
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Failed to request console access:', error);
+        this.handleConnectionError('Failed to request console access');
+      }
+    });
+  }
+
+  private handleConnectionUpdate(connection: ConsoleConnection) {
+    this.isConnecting = false;
+    this.isConnected = connection.connected;
+    this.currentSession = connection.session;
+    this.error = connection.error;
+    
+    if (connection.connected && connection.session && this.vncDisplay?.nativeElement) {
+      // Initialize noVNC when connected
+      this.initializeVNC();
     }
   }
 
-  private simulateConnection() {
-    // Simulate connection delay
-    setTimeout(() => {
-      this.isConnecting = false;
-      this.isConnected = true;
-      this.reconnectAttempts = 0;
-      this.addConsoleLine('Connected to VM console');
-      this.addConsoleLine(`${this.vm?.name} login: `);
+  private initializeVNC() {
+    if (!this.currentSession || !this.vncDisplay?.nativeElement) return;
+    
+    try {
+      // Create noVNC connection
+      // Note: In a real implementation, we'd connect directly to the VNC WebSocket
+      // For now, we'll create a placeholder VNC display
+      this.createVNCPlaceholder();
       
-      if (this.consoleInput?.nativeElement) {
-        this.consoleInput.nativeElement.focus();
-      }
-    }, 2000);
+    } catch (error) {
+      console.error('Failed to initialize VNC:', error);
+      this.handleConnectionError('Failed to initialize VNC display');
+    }
+  }
+
+  private createVNCPlaceholder() {
+    // Create a placeholder VNC display since we don't have a real VNC server
+    if (!this.vncDisplay?.nativeElement) return;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = this.displayWidth;
+    canvas.height = this.displayHeight;
+    canvas.style.border = '1px solid #ccc';
+    canvas.style.backgroundColor = '#000';
+    
+    // Clear any existing content
+    this.vncDisplay.nativeElement.innerHTML = '';
+    this.vncDisplay.nativeElement.appendChild(canvas);
+    
+    // Draw a simple placeholder
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('VNC Console Connected', canvas.width / 2, canvas.height / 2 - 20);
+      ctx.fillText(`VM: ${this.vm?.name}`, canvas.width / 2, canvas.height / 2 + 20);
+      ctx.fillText('(Placeholder - Real VNC integration would display here)', canvas.width / 2, canvas.height / 2 + 60);
+    }
+    
+    // Add mouse and keyboard event listeners
+    canvas.addEventListener('click', () => {
+      console.log('VNC canvas clicked');
+    });
+    
+    canvas.addEventListener('keydown', (event) => {
+      console.log('VNC key pressed:', event.key);
+      this.consoleService.sendKeys([event.key]);
+      event.preventDefault();
+    });
+    
+    // Make canvas focusable
+    canvas.setAttribute('tabindex', '0');
+    canvas.focus();
   }
 
   disconnect() {
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
+    this.consoleService.disconnect();
+    
+    if (this.rfb) {
+      this.rfb.disconnect();
+      this.rfb = null;
     }
+    
     this.isConnected = false;
     this.isConnecting = false;
+    this.currentSession = null;
     this.addConsoleLine('Disconnected from console');
   }
 
@@ -299,9 +422,30 @@ export class VmConsoleComponent implements OnInit, OnDestroy, AfterViewInit {
     }, 100);
   }
 
+  sendSpecialKey(combination: string) {
+    if (!this.isConnected) return;
+    
+    switch (combination) {
+      case 'ctrl-alt-del':
+        // Send Ctrl+Alt+Del sequence
+        this.consoleService.sendKeys(['Control_L', 'Alt_L', 'Delete']);
+        break;
+      case 'ctrl-c':
+        this.consoleService.sendKeys(['Control_L', 'c']);
+        break;
+      case 'alt-tab':
+        this.consoleService.sendKeys(['Alt_L', 'Tab']);
+        break;
+      default:
+        console.log('Unknown special key combination:', combination);
+    }
+  }
+
   getStatusText(): string {
     if (this.isConnecting) return 'Connecting...';
-    if (this.isConnected) return 'Connected';
+    if (this.isConnected && this.currentSession) {
+      return `Connected (${this.currentSession.protocol.toUpperCase()})`;
+    }
     if (this.error) return 'Error';
     return 'Disconnected';
   }
