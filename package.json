@@ -18,7 +18,7 @@
     "test:sso": "cd apps/sso && npm test",
     "test:vm-service": "cd apps/vm-service && python -m pytest tests/ -v",
     "install:all": "npm install && npm run install:rollo-site && npm run install:sso && npm run install:vm-service",
-    "install:rollo-site": "cd apps/rollo-site && npm install",
+    "install:rollo-site": "cd apps/rollo-site && npm install --legacy-peer-deps",
     "install:sso": "cd apps/sso && npm install",
     "install:vm-service": "cd apps/vm-service && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
     "build:all": "npm run build:rollo-site && npm run build:sso && npm run build:vm-service",

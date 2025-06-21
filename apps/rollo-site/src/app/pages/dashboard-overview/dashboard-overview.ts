@@ -20,9 +20,10 @@ interface DashboardStats {
 
 @Component({
   selector: 'app-dashboard-overview',
+  standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './dashboard-overview.html',
-  styleUrl: './dashboard-overview.scss'
+  styleUrls: ['./dashboard-overview.scss']
 })
 export class DashboardOverview implements OnInit, OnDestroy {
   stats: DashboardStats = {

@@ -5,9 +5,10 @@ export type StatusType = 'running' | 'stopped' | 'paused' | 'error' | 'transitio
 
 @Component({
   selector: 'app-status-indicator',
+  standalone: true,
   imports: [CommonModule],
   templateUrl: './status-indicator.html',
-  styleUrl: './status-indicator.scss'
+  styleUrls: ['./status-indicator.scss']
 })
 export class StatusIndicator {
   @Input() status!: string;

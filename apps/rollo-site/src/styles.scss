@@ -1,5 +1,5 @@
 /* Import shared styles from the design system */
-@import '../../../packages/shared-styles/index.scss';
+@use '../../../packages/shared-styles/index.scss' as *;
 
 /* Rollo Site specific styles */
 /* Add site-specific customizations here */

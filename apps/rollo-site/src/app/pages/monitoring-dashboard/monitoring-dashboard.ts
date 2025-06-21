@@ -21,9 +21,10 @@ interface SystemMetrics {
 
 @Component({
   selector: 'app-monitoring-dashboard',
+  standalone: true,
   imports: [CommonModule, RouterLink, LoadingSpinner, StatusIndicator],
   templateUrl: './monitoring-dashboard.html',
-  styleUrl: './monitoring-dashboard.scss'
+  styleUrls: ['./monitoring-dashboard.scss']
 })
 export class MonitoringDashboard implements OnInit, OnDestroy {
   vms: VM[] = [];

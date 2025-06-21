@@ -7,9 +7,10 @@ import { RegisterData, ApiError } from '../../models/auth.models';
 
 @Component({
   selector: 'app-register',
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './register.html',
-  styleUrl: './register.scss'
+  styleUrls: ['./register.scss']
 })
 export class Register {
   userData: RegisterData = {

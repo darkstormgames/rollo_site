@@ -7,9 +7,10 @@ import { LoginCredentials, ApiError } from '../../models/auth.models';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './login.html',
-  styleUrl: './login.scss'
+  styleUrls: ['./login.scss']
 })
 export class Login {
   credentials: LoginCredentials = {

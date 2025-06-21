@@ -26,9 +26,10 @@ interface CreateVMFormData {
 
 @Component({
   selector: 'app-vm-create',
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './vm-create.html',
-  styleUrl: './vm-create.scss'
+  styleUrls: ['./vm-create.scss']
 })
 export class VmCreate implements OnInit, OnDestroy {
   currentStep = 1;

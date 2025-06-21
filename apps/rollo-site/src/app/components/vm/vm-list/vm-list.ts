@@ -20,9 +20,10 @@ import {
 
 @Component({
   selector: 'app-vm-list',
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './vm-list.html',
-  styleUrl: './vm-list.scss'
+  styleUrls: ['./vm-list.scss']
 })
 export class VmList implements OnInit, OnDestroy {
   // Observables from store

@@ -9,9 +9,10 @@ import { LoadingSpinnerComponent } from '../../shared/loading-spinner/loading-sp
 
 @Component({
   selector: 'app-vm-detail',
+  standalone: true,
   imports: [CommonModule, RouterLink, LoadingSpinnerComponent],
   templateUrl: './vm-detail.html',
-  styleUrl: './vm-detail.scss'
+  styleUrls: ['./vm-detail.scss']
 })
 export class VmDetail implements OnInit, OnDestroy {
   vm: VM | null = null;

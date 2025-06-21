@@ -7,9 +7,10 @@ import { ThemeToggleComponent } from '../../shared/theme-toggle/theme-toggle.com
 
 @Component({
   selector: 'app-dashboard-layout',
+  standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ThemeToggleComponent],
   templateUrl: './dashboard-layout.html',
-  styleUrl: './dashboard-layout.scss'
+  styleUrls: ['./dashboard-layout.scss']
 })
 export class DashboardLayout implements OnInit {
   currentUser: User | null = null;

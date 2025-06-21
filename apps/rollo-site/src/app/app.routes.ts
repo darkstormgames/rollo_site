@@ -16,14 +16,14 @@ import { MonitoringDashboard } from './pages/monitoring-dashboard/monitoring-das
 export const routes: Routes = [
   { path: '', component: Home },
   { path: 'about', component: About },
-  { path: 'portfolio', component: Portfolio, canActivate: [AuthGuard] },
+  { path: 'portfolio', component: Portfolio, canActivate: [AuthGuard]},
   { path: 'contact', component: Contact },
-  { path: 'login', component: Login, canActivate: [GuestGuard] },
-  { path: 'register', component: Register, canActivate: [GuestGuard] },
+  { path: 'login', component: Login/*, canActivate: [GuestGuard] */},
+  { path: 'register', component: Register/*, canActivate: [GuestGuard] */},
   {
     path: 'dashboard',
     component: DashboardLayout,
-    canActivate: [AuthGuard],
+    /*canActivate: [AuthGuard],*/
     children: [
       { path: '', component: DashboardOverview },
       { path: 'vms', component: VmList },
