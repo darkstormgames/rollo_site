@@ -1,6 +1,6 @@
 """OS Image model for image management."""
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text, Boolean, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, Boolean, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -48,12 +48,11 @@ class OSImage(Base):
     error_message = Column(Text, nullable=True)  # Error details if status is ERROR
     
     # Ownership and timestamps
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_by = Column(Integer, nullable=False)  # SSO user ID, no ForeignKey
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
-    created_by_user = relationship("User", back_populates="created_images")
     templates = relationship("VMTemplate", back_populates="os_image")
     
     def __repr__(self):

@@ -1,7 +1,4 @@
 """VM management API endpoints."""
-
-import uuid
-import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
@@ -13,7 +10,7 @@ from core.exceptions import (
     ServerNotFoundException, VMOperationException, ResourceAllocationException
 )
 from models.base import DatabaseSession
-from models.user import User
+# from models.user import User  # Removed ORM User import
 from models.virtual_machine import VirtualMachine, VMStatus
 from models.server import Server
 from models.vm_disk import VMDisk
@@ -47,8 +44,8 @@ try:
     from virtualization.vm_operations import VMOperations
     vm_ops = VMOperations()
 except ImportError as e:
-    logger.warning(f"VM operations not available: {e}")
     vm_ops = None
+    logger.warning(f"VMOperations not available: {e}")
 
 router = APIRouter()
 
@@ -107,56 +104,40 @@ def vm_to_response(vm: VirtualMachine) -> VMResponse:
 @router.get("/vms", response_model=VMListResponse)
 @require_permissions(["read"])
 async def list_vms(
-    filters: VMListFilters = Depends(),
-    current_user: User = Depends(get_current_active_user),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: Optional[VMStatus] = Query(None, description="Filter by status"),
+    search: Optional[str] = Query(None, description="Search in VM names"),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """List all VMs with filtering and pagination."""
-    try:
-        # Build query
-        query = db.query(VirtualMachine).options(joinedload(VirtualMachine.server))
-        
-        # Apply filters
-        if filters.status:
-            query = query.filter(VirtualMachine.status == filters.status)
-        if filters.server_id:
-            query = query.filter(VirtualMachine.server_id == filters.server_id)
-        if filters.os_type:
-            query = query.filter(VirtualMachine.os_type == filters.os_type)
-        if filters.search:
-            query = query.filter(VirtualMachine.name.ilike(f"%{filters.search}%"))
-        
-        # Apply pagination
-        total = query.count()
-        offset = (filters.page - 1) * filters.per_page
-        vms = query.offset(offset).limit(filters.per_page).all()
-        
-        # Convert to response format
-        vm_responses = [vm_to_response(vm) for vm in vms]
-        
-        total_pages = (total + filters.per_page - 1) // filters.per_page
-        
-        return VMListResponse(
-            vms=vm_responses,
-            total=total,
-            page=filters.page,
-            per_page=filters.per_page,
-            total_pages=total_pages
-        )
-        
-    except Exception as e:
-        logger.error(f"Error listing VMs: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve VMs"
-        )
+    """List VMs with filtering and pagination, only for VMs owned by current user."""
+    query = db.query(VirtualMachine)
+    # Only show VMs owned by current user (SSO user id)
+    query = query.filter(VirtualMachine.created_by == current_user["id"])
+    if status:
+        query = query.filter(VirtualMachine.status == status)
+    if search:
+        query = query.filter(VirtualMachine.name.ilike(f"%{search}%"))
+    total = query.count()
+    offset = (page - 1) * per_page
+    vms = query.offset(offset).limit(per_page).all()
+    vm_responses = [vm_to_response(vm) for vm in vms]
+    total_pages = (total + per_page - 1) // per_page
+    return VMListResponse(
+        vms=vm_responses,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages
+    )
 
 
 @router.get("/vms/{vm_id}", response_model=VMResponse)
 @require_permissions(["read"])
 async def get_vm(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get VM details by ID."""
@@ -177,7 +158,7 @@ async def get_vm(
 @require_permissions(["write"])
 async def create_vm(
     vm_data: VMCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Create a new VM."""
@@ -204,7 +185,7 @@ async def create_vm(
             disk_gb=vm_data.disk_gb,
             os_type=vm_data.os_type,
             os_version=vm_data.os_version,
-            created_by=current_user.id
+            created_by=current_user["id"]  # Use SSO user id
         )
         
         db.add(vm)
@@ -269,7 +250,7 @@ async def create_vm(
 async def update_vm(
     vm_id: int,
     vm_data: VMUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Update VM configuration."""
@@ -302,7 +283,7 @@ async def update_vm(
 async def delete_vm(
     vm_id: int,
     delete_disks: bool = Query(True, description="Delete associated disk files"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Delete VM."""
@@ -355,7 +336,7 @@ async def delete_vm(
 @require_permissions(["write"])
 async def start_vm(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Start VM."""
@@ -402,7 +383,7 @@ async def start_vm(
 @require_permissions(["write"])
 async def stop_vm(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Stop VM gracefully."""
@@ -449,7 +430,7 @@ async def stop_vm(
 @require_permissions(["write"])
 async def force_stop_vm(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Force stop VM."""
@@ -497,7 +478,7 @@ async def force_stop_vm(
 async def restart_vm(
     vm_id: int,
     force: bool = Query(False, description="Force restart"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Restart VM."""
@@ -544,7 +525,7 @@ async def restart_vm(
 @require_permissions(["write"])
 async def reset_vm(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Hard reset VM (equivalent to force restart)."""
@@ -593,7 +574,7 @@ async def reset_vm(
 @require_permissions(["read"])
 async def get_vm_config(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get VM configuration."""
@@ -653,7 +634,7 @@ async def get_vm_config(
 async def update_vm_config(
     vm_id: int,
     config_data: VMConfigUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Update VM configuration."""
@@ -705,7 +686,7 @@ async def update_vm_config(
 async def resize_vm(
     vm_id: int,
     resize_data: VMResize,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Resize VM resources."""
@@ -754,7 +735,7 @@ async def resize_vm(
 @router.get("/vm/resource-limits", response_model=ResourceLimits)
 @require_permissions(["read"])
 async def get_resource_limits(
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get system resource limits and availability."""
@@ -775,7 +756,7 @@ async def get_resource_limits(
 async def update_vm_resources(
     vm_id: int,
     resize_data: ResizeRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Update VM resource configuration with validation."""
@@ -950,7 +931,7 @@ async def update_vm_resources(
 async def add_vm_disk(
     vm_id: int,
     disk_config: DiskConfig,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Add a new disk to VM."""
@@ -1048,7 +1029,7 @@ async def add_vm_disk(
 async def remove_vm_disk(
     vm_id: int,
     disk_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Remove a disk from VM."""

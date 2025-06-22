@@ -1,6 +1,6 @@
 """Server model for physical/remote servers."""
 
-from sqlalchemy import Column, Integer, String, Enum, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Enum, DateTime, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -42,12 +42,11 @@ class Server(Base):
     last_heartbeat = Column(DateTime(timezone=True), nullable=True)
     
     # Ownership and timestamps
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, nullable=False)  # SSO user ID, no ForeignKey
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
-    owner = relationship("User", back_populates="servers")
     virtual_machines = relationship("VirtualMachine", back_populates="server", cascade="all, delete-orphan")
     metrics = relationship("ServerMetrics", back_populates="server", cascade="all, delete-orphan")
     

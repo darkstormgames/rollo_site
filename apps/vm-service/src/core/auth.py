@@ -39,7 +39,6 @@ async def fetch_user_from_sso(token: str) -> dict:
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient() as client:
         try:
-            print(f"{headers}")
             resp = await client.get(f"{SSO_BASE_URL}/me", headers=headers)
             resp.raise_for_status()
             data = resp.json()
@@ -48,10 +47,10 @@ async def fetch_user_from_sso(token: str) -> dict:
             if not user:
                 raise AuthenticationError("User info missing in SSO response")
             # Optionally map access_level to accessLevel for consistency
-            if "access_level" in user:
-                user["accessLevel"] = user["access_level"]
+            if "accessLevel" in user:
+                print(f"Mapping access_level: {user['accessLevel']}")
                 # Map access_level to permissions
-                level = user["access_level"]
+                level = user["accessLevel"]
                 if level == "admin":
                     user["permissions"] = ["read", "write", "delete", "admin"]
                 elif level == "premium":

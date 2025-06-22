@@ -1,7 +1,6 @@
 """AuditLog model for tracking all actions."""
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON
 from sqlalchemy.sql import func
 from .base import Base
 
@@ -15,7 +14,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # User who performed the action
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Nullable for system actions
+    user_id = Column(Integer, nullable=True)  # SSO user ID, no ForeignKey
     
     # Action details
     action = Column(String(100), nullable=False, index=True)
@@ -32,9 +31,6 @@ class AuditLog(Base):
     
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
-    # Relationships
-    user = relationship("User", back_populates="audit_logs")
     
     def __repr__(self):
         return f"<AuditLog(id={self.id}, action='{self.action}', resource_type='{self.resource_type}', user_id={self.user_id})>"

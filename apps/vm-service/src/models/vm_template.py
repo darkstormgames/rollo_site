@@ -1,6 +1,6 @@
 """VMTemplate model for predefined VM configurations."""
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .base import Base
@@ -55,12 +55,11 @@ class VMTemplate(Base):
     version_history = Column(Text, nullable=True)  # JSON array of version changes
     
     # Ownership and timestamps
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_by = Column(Integer, nullable=False)  # User ID of the creator (SSO user ID)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
-    created_by_user = relationship("User", back_populates="created_templates")
     os_image = relationship("OSImage", back_populates="templates")
     
     def __repr__(self):

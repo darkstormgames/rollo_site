@@ -69,13 +69,12 @@ class VirtualMachine(Base):
     vnc_port = Column(Integer, nullable=True)
     
     # Ownership and timestamps
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_by = Column(Integer, nullable=False)  # SSO user ID, no ForeignKey
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
     server = relationship("Server", back_populates="virtual_machines")
-    created_by_user = relationship("User", back_populates="created_vms")
     snapshots = relationship("VMSnapshot", back_populates="virtual_machine", cascade="all, delete-orphan")
     disks = relationship("VMDisk", back_populates="virtual_machine", cascade="all, delete-orphan")
     networks = relationship("VMNetwork", back_populates="virtual_machine", cascade="all, delete-orphan")

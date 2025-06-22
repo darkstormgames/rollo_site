@@ -13,7 +13,7 @@ from core.auth import get_current_active_user, require_permissions
 from core.logging import get_logger
 from core.config import settings
 from models.base import DatabaseSession
-from models.user import User
+# from models.user import User  # Removed ORM User import
 from models.os_image import OSImage, ImageStatus
 from schemas.template import (
     ImageCreate, ImageResponse, ImageListResponse
@@ -66,7 +66,7 @@ async def list_images(
     os_type: Optional[str] = Query(None, description="Filter by OS type"),
     status: Optional[str] = Query(None, description="Filter by status"),
     public: Optional[bool] = Query(None, description="Filter by public images"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """List OS images with filtering and pagination."""
@@ -75,7 +75,7 @@ async def list_images(
         query = db.query(OSImage).filter(
             or_(
                 OSImage.public == True,
-                OSImage.created_by == current_user.id
+                OSImage.created_by == current_user["id"]
             )
         )
         
@@ -119,7 +119,7 @@ async def list_images(
 @require_permissions(["read"])
 async def get_image(
     image_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get image details by ID."""
@@ -127,7 +127,7 @@ async def get_image(
         OSImage.id == image_id,
         or_(
             OSImage.public == True,
-            OSImage.created_by == current_user.id
+            OSImage.created_by == current_user["id"]
         )
     ).first()
     
@@ -144,7 +144,7 @@ async def get_image(
 @require_permissions(["write"])
 async def create_image(
     image_data: ImageCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Create a new OS image entry."""
@@ -169,14 +169,14 @@ async def create_image(
             size_gb=image_data.size_gb,
             status=ImageStatus.UPLOADING if not image_data.source_url else ImageStatus.IMPORTING,
             public=image_data.public,
-            created_by=current_user.id
+            created_by=current_user["id"]
         )
         
         db.add(image)
         db.commit()
         db.refresh(image)
         
-        logger.info(f"Image '{image_data.name}' created successfully by user {current_user.id}")
+        logger.info(f"Image '{image_data.name}' created successfully by user {current_user['id']}")
         
         return image_to_response(image)
         
@@ -199,7 +199,7 @@ async def upload_image(
     os_type: str = Query(..., description="Operating system type"),
     os_version: Optional[str] = Query(None, description="OS version"),
     public: bool = Query(False, description="Whether image is public"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Upload an OS image file."""
@@ -229,7 +229,7 @@ async def upload_image(
         os.makedirs(images_dir, exist_ok=True)
         
         # Generate unique filename
-        file_path = os.path.join(images_dir, f"{name}_{current_user.id}.{format_ext}")
+        file_path = os.path.join(images_dir, f"{name}_{current_user['id']}.{format_ext}")
         
         # Create image entry first
         image = OSImage(
@@ -241,7 +241,7 @@ async def upload_image(
             file_path=file_path,
             status=ImageStatus.UPLOADING,
             public=public,
-            created_by=current_user.id
+            created_by=current_user["id"]
         )
         
         db.add(image)
@@ -267,7 +267,7 @@ async def upload_image(
             db.commit()
             db.refresh(image)
             
-            logger.info(f"Image '{name}' uploaded successfully by user {current_user.id}")
+            logger.info(f"Image '{name}' uploaded successfully by user {current_user['id']}")
             
             return image_to_response(image)
             
@@ -300,13 +300,13 @@ async def upload_image(
 @require_permissions(["write"])
 async def delete_image(
     image_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Delete an image."""
     image = db.query(OSImage).filter(
         OSImage.id == image_id,
-        OSImage.created_by == current_user.id  # Only creator can delete
+        OSImage.created_by == current_user["id"]  # Only creator can delete
     ).first()
     
     if not image:
@@ -331,7 +331,7 @@ async def delete_image(
         db.delete(image)
         db.commit()
         
-        logger.info(f"Image '{image_name}' deleted by user {current_user.id}")
+        logger.info(f"Image '{image_name}' deleted by user {current_user['id']}")
         
         return {"message": f"Image '{image_name}' deleted successfully"}
         

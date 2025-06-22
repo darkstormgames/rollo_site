@@ -8,7 +8,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from core.logging import get_logger
-from models.user import User
+# from models.user import User
 
 logger = get_logger("websocket")
 
@@ -16,9 +16,9 @@ logger = get_logger("websocket")
 class ConnectionInfo:
     """Information about a WebSocket connection."""
     
-    def __init__(self, websocket: WebSocket, user: Optional[User] = None):
+    def __init__(self, websocket: WebSocket, user: Optional[dict] = None):
         self.websocket = websocket
-        self.user = user
+        self.user = user  # Now a dict from SSO, not ORM User
         self.connected_at = datetime.utcnow()
         self.subscriptions: Set[str] = set()
         self.vm_subscriptions: Set[int] = set()
@@ -52,7 +52,7 @@ class WebSocketManager:
         """Generate a unique connection ID."""
         return f"conn_{id(websocket)}_{datetime.utcnow().timestamp()}"
     
-    async def connect(self, websocket: WebSocket, user: Optional[User] = None) -> str:
+    async def connect(self, websocket: WebSocket, user: Optional[dict] = None) -> str:
         """Accept a new WebSocket connection."""
         await websocket.accept()
         
@@ -64,7 +64,7 @@ class WebSocketManager:
         # Add to global room by default
         self.rooms["global"].add(connection_id)
         
-        logger.info(f"WebSocket connected: {connection_id} (user: {user.username if user else 'anonymous'})")
+        logger.info(f"WebSocket connected: {connection_id} (user: {user['username'] if user else 'anonymous'})")
         
         # Send welcome message
         await self.send_to_connection(connection_id, {

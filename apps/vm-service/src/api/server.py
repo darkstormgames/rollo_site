@@ -1,20 +1,15 @@
 """Server management API endpoints."""
 
-import uuid
-import subprocess
-import socket
 from typing import List, Optional
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
-import ipaddress
-import time
 
 from core.auth import get_current_active_user, require_permissions
 from core.logging import get_logger
 from models.base import DatabaseSession
-from models.user import User
+# from models.user import User  # Removed ORM User import
 from models.server import Server, ServerStatus
 from schemas.server import (
     ServerRegistrationRequest, ServerUpdate, ServerResponse, ServerListResponse,
@@ -53,6 +48,7 @@ def validate_auth_token(token: str) -> bool:
 def ping_server(ip_address: str, port: int = 22, timeout: int = 5) -> bool:
     """Check if server is reachable."""
     try:
+        import socket
         sock = socket.create_connection((ip_address, port), timeout)
         sock.close()
         return True
@@ -62,6 +58,7 @@ def ping_server(ip_address: str, port: int = 22, timeout: int = 5) -> bool:
 
 def scan_subnet(subnet: str, port: int = 22, timeout: int = 5) -> List[str]:
     """Scan subnet for reachable servers."""
+    import ipaddress
     try:
         network = ipaddress.ip_network(subnet, strict=False)
         reachable_hosts = []
@@ -81,7 +78,7 @@ def scan_subnet(subnet: str, port: int = 22, timeout: int = 5) -> List[str]:
 @router.post("/servers/register", response_model=ServerResponse)
 async def register_server(
     registration_data: ServerRegistrationRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Register a new server."""
@@ -119,7 +116,7 @@ async def register_server(
         disk_gb=registration_data.system_info.disk_gb,
         agent_version=registration_data.agent_version,
         last_heartbeat=datetime.now(timezone.utc),
-        user_id=current_user.id
+        user_id=current_user["id"]  # Use SSO user dict
     )
     
     db.add(server)
@@ -137,7 +134,7 @@ async def list_servers(
     status: Optional[ServerStatus] = Query(None, description="Filter by status"),
     hostname: Optional[str] = Query(None, description="Filter by hostname"),
     agent_version: Optional[str] = Query(None, description="Filter by agent version"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """List all servers with filtering and pagination."""
@@ -150,7 +147,6 @@ async def list_servers(
         query = query.filter(Server.hostname.ilike(f"%{hostname}%"))
     if agent_version:
         query = query.filter(Server.agent_version == agent_version)
-    print(f"Current user: {current_user}")
     # Only show servers owned by current user (unless admin)
     # TODO: Add admin role check
     query = query.filter(Server.user_id == current_user["id"])
@@ -176,14 +172,14 @@ async def list_servers(
 @router.get("/servers/{server_id}", response_model=ServerResponse)
 async def get_server(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get server details."""
     server = db.query(Server).options(joinedload(Server.virtual_machines)).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     
@@ -200,14 +196,14 @@ async def get_server(
 async def update_server(
     server_id: int,
     update_data: ServerUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Update server information."""
     server = db.query(Server).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     
@@ -248,14 +244,14 @@ async def update_server(
 @router.delete("/servers/{server_id}", response_model=MessageResponse)
 async def delete_server(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Remove server."""
     server = db.query(Server).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     
@@ -283,7 +279,7 @@ async def delete_server(
 @router.post("/servers/discover", response_model=ServerDiscoverResponse)
 async def discover_servers(
     discover_data: ServerDiscoverRequest,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Discover servers on network."""
     logger.info(f"Server discovery requested for subnet: {discover_data.subnet}")
@@ -315,14 +311,14 @@ async def discover_servers(
 @router.post("/servers/{server_id}/verify", response_model=ServerOperationResponse)
 async def verify_server_connectivity(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Verify server connectivity."""
     server = db.query(Server).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     
@@ -364,14 +360,14 @@ async def verify_server_connectivity(
 @router.get("/servers/{server_id}/status", response_model=ServerStatusResponse)
 async def get_server_status(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get current server status."""
     server = db.query(Server).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     
@@ -404,14 +400,14 @@ async def get_server_status(
 @router.get("/servers/{server_id}/metrics", response_model=ServerMetricsResponse)
 async def get_server_metrics(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get server metrics."""
     server = db.query(Server).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     
@@ -443,14 +439,14 @@ async def get_server_metrics(
 @router.post("/servers/{server_id}/health-check", response_model=ServerHealthCheckResponse)
 async def manual_health_check(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Perform manual health check."""
     server = db.query(Server).filter(
         and_(
             Server.id == server_id,
-            Server.user_id == current_user.id
+            Server.user_id == current_user["id"]
         )
     ).first()
     

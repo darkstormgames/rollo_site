@@ -10,7 +10,7 @@ from sqlalchemy import and_, or_
 from core.auth import get_current_active_user, require_permissions
 from core.logging import get_logger
 from models.base import DatabaseSession
-from models.user import User
+# from models.user import User  # Removed ORM User import
 from models.vm_template import VMTemplate
 from models.virtual_machine import VirtualMachine, VMStatus
 import uuid
@@ -136,7 +136,7 @@ def template_to_response(template: VMTemplate) -> TemplateResponse:
 @require_permissions(["read"])
 async def list_templates(
     filters: TemplateListFilters = Depends(),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """List VM templates with filtering and pagination."""
@@ -145,7 +145,7 @@ async def list_templates(
         query = db.query(VMTemplate).filter(
             or_(
                 VMTemplate.public == True,
-                VMTemplate.created_by == current_user.id
+                VMTemplate.created_by == current_user["id"]
             )
         )
         
@@ -195,7 +195,7 @@ async def list_templates(
 @require_permissions(["read"])
 async def get_template(
     template_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get template details by ID."""
@@ -203,7 +203,7 @@ async def get_template(
         VMTemplate.id == template_id,
         or_(
             VMTemplate.public == True,
-            VMTemplate.created_by == current_user.id
+            VMTemplate.created_by == current_user["id"]
         )
     ).first()
     
@@ -220,7 +220,7 @@ async def get_template(
 @require_permissions(["write"])
 async def create_template(
     template_data: TemplateCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Create a new VM template."""
@@ -265,7 +265,7 @@ async def create_template(
             base_image_path=template_data.base_image_path or "/var/lib/libvirt/images/base.qcow2",
             tags=tags_json,
             public=template_data.public,
-            created_by=current_user.id,
+            created_by=current_user["id"],
             # New fields
             packages=packages_json,
             cloud_init_config=template_data.cloud_init_config,
@@ -281,7 +281,7 @@ async def create_template(
         db.commit()
         db.refresh(template)
         
-        logger.info(f"Template '{template_data.name}' created successfully by user {current_user.id}")
+        logger.info(f"Template '{template_data.name}' created successfully by user {current_user['id']}")
         
         return template_to_response(template)
         
@@ -300,13 +300,13 @@ async def create_template(
 async def update_template(
     template_id: int,
     template_data: TemplateUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Update template configuration."""
     template = db.query(VMTemplate).filter(
         VMTemplate.id == template_id,
-        VMTemplate.created_by == current_user.id  # Only creator can update
+        VMTemplate.created_by == current_user["id"]  # Only creator can update
     ).first()
     
     if not template:
@@ -351,7 +351,7 @@ async def update_template(
         db.commit()
         db.refresh(template)
         
-        logger.info(f"Template '{template.name}' updated by user {current_user.id}")
+        logger.info(f"Template '{template.name}' updated by user {current_user['id']}")
         
         return template_to_response(template)
         
@@ -369,13 +369,13 @@ async def update_template(
 @require_permissions(["write"])
 async def delete_template(
     template_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Delete a template."""
     template = db.query(VMTemplate).filter(
         VMTemplate.id == template_id,
-        VMTemplate.created_by == current_user.id  # Only creator can delete
+        VMTemplate.created_by == current_user["id"]  # Only creator can delete
     ).first()
     
     if not template:
@@ -389,7 +389,7 @@ async def delete_template(
         db.delete(template)
         db.commit()
         
-        logger.info(f"Template '{template_name}' deleted by user {current_user.id}")
+        logger.info(f"Template '{template_name}' deleted by user {current_user['id']}")
         
         return {"message": f"Template '{template_name}' deleted successfully"}
         
@@ -431,7 +431,7 @@ async def get_predefined_templates():
 async def deploy_template(
     template_id: int,
     deploy_request: TemplateDeployRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Deploy a VM from a template."""
@@ -441,7 +441,7 @@ async def deploy_template(
             VMTemplate.id == template_id,
             or_(
                 VMTemplate.public == True,
-                VMTemplate.created_by == current_user.id
+                VMTemplate.created_by == current_user["id"]
             )
         ).first()
         
@@ -525,7 +525,7 @@ async def deploy_template(
         
         # Here you would normally trigger the actual VM creation
         # For now, we'll just mark it as created
-        logger.info(f"VM '{deploy_request.vm_name}' deployed from template '{template.name}' by user {current_user.id}")
+        logger.info(f"VM '{deploy_request.vm_name}' deployed from template '{template.name}' by user {current_user['id']}")
         logger.debug(f"Deployment config: {deployment_config}")
         
         # Return response
@@ -552,7 +552,7 @@ async def deploy_template(
 @require_permissions(["read"])
 async def get_template_versions(
     template_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get template version history."""
@@ -560,7 +560,7 @@ async def get_template_versions(
         VMTemplate.id == template_id,
         or_(
             VMTemplate.public == True,
-            VMTemplate.created_by == current_user.id
+            VMTemplate.created_by == current_user["id"]
         )
     ).first()
     

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_active_user, require_permissions
 from core.logging import get_logger
 from models.base import DatabaseSession
-from models.user import User
+# from models.user import User  # Removed ORM User import
 from services.metrics_service import MetricsService
 from services.alerts_service import AlertsService
 from schemas.metrics import (
@@ -49,7 +49,7 @@ def get_alerts_service(db: Session = Depends(get_db)) -> AlertsService:
 @router.get("/servers/{server_id}", response_model=ServerMetricsResponse)
 async def get_server_metrics(
     server_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Get current server metrics."""
@@ -85,7 +85,7 @@ async def get_server_metrics(
 @router.get("/vms/{vm_id}", response_model=VMMetricsResponse)
 async def get_vm_metrics(
     vm_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Get current VM metrics."""
@@ -108,7 +108,7 @@ async def get_server_historical_metrics(
     start: Optional[datetime] = Query(None, description="Start time"),
     end: Optional[datetime] = Query(None, description="End time"),
     aggregation: Optional[AggregationType] = Query(AggregationType.AVG, description="Aggregation function"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Get historical server metrics."""
@@ -145,7 +145,7 @@ async def get_vm_historical_metrics(
     start: Optional[datetime] = Query(None, description="Start time"),
     end: Optional[datetime] = Query(None, description="End time"),
     aggregation: Optional[AggregationType] = Query(AggregationType.AVG, description="Aggregation function"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Get historical VM metrics."""
@@ -177,7 +177,7 @@ async def get_vm_historical_metrics(
 @router.post("/query", response_model=CustomMetricsResponse)
 async def custom_metrics_query(
     query: CustomMetricsQuery,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Execute custom metrics query."""
@@ -210,7 +210,7 @@ async def custom_metrics_query(
 
 @router.get("/alerts", response_model=AlertsResponse)
 async def get_alerts(
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     alerts_service: AlertsService = Depends(get_alerts_service)
 ):
     """Get active alerts."""
@@ -230,7 +230,7 @@ async def get_alerts(
 async def get_metrics_collection_status(
     entity_type: EntityType,
     entity_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Get metrics collection status for an entity."""
@@ -252,7 +252,7 @@ async def record_server_metric(
     metric_name: str,
     value: float,
     unit: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Record a server metric (used by monitoring agents)."""
@@ -274,7 +274,7 @@ async def record_vm_metric(
     metric_name: str,
     value: float,
     unit: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_active_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """Record a VM metric (used by monitoring agents)."""

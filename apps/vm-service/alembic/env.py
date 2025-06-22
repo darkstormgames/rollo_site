@@ -28,7 +28,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # Import all models to ensure they are registered
 from models import (
-    User, Role, Server, VirtualMachine, VMTemplate, 
+    Server, VirtualMachine, VMTemplate, 
     AuditLog, ServerMetrics, VMSnapshot, OSImage
 )
 target_metadata = Base.metadata

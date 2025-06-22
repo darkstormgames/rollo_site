@@ -36,8 +36,10 @@ async def monitor_endpoint(
     connection_id = None
     
     try:
-        # Authenticate user
+        # Authenticate user via SSO (replace ORM User)
+        from websocket.auth import get_websocket_user
         user = await get_websocket_user(websocket, token)
+        # user is now a dict or None
         
         # Connect to WebSocket manager
         connection_id = await websocket_manager.connect(websocket, user)
@@ -102,8 +104,10 @@ async def vm_endpoint(
     connection_id = None
     
     try:
-        # Authenticate user
+        # Authenticate user via SSO (replace ORM User)
+        from websocket.auth import get_websocket_user
         user = await get_websocket_user(websocket, token)
+        # user is now a dict or None
         
         # Check permissions for this VM
         if not await check_websocket_permissions(user, "view_vm", vm_id):
@@ -165,8 +169,10 @@ async def console_endpoint(
     connection_id = None
     
     try:
-        # Authenticate user
+        # Authenticate user via SSO (replace ORM User)
+        from websocket.auth import get_websocket_user
         user = await get_websocket_user(websocket, token)
+        # user is now a dict or None
         
         # Check permissions for console access
         if not await check_websocket_permissions(user, "console_vm", vm_id):
@@ -326,8 +332,10 @@ async def server_endpoint(
     connection_id = None
     
     try:
-        # Authenticate user
+        # Authenticate user via SSO (replace ORM User)
+        from websocket.auth import get_websocket_user
         user = await get_websocket_user(websocket, token)
+        # user is now a dict or None
         
         # Check permissions for this server
         if not await check_websocket_permissions(user, "view_server", server_id):
