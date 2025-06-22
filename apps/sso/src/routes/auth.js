@@ -387,4 +387,49 @@ router.get('/admin/users', authenticateToken, async (req, res) => {
     }
 });
 
+router.get('/me', authenticateToken, async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = req.user;
+        const accessibleSites = await AccessLevelService.getAccessibleSites(user.id);
+
+        console.log(`Accessible sites for user ${user.id}:`, accessibleSites);
+        console.log(`User details:`, {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            accessLevel: user.access_level,
+            createdAt: user.created_at,
+            isActive: user.is_active
+        });
+
+        res.json({
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                accessLevel: user.access_level,
+                createdAt: user.created_at,
+                isActive: user.is_active
+            },
+            accessibleSites: accessibleSites.map(site => ({
+                id: site.id,
+                name: site.site_name,
+                url: site.site_url,
+                requiredAccessLevel: site.access_level_required
+            }))
+        });
+    } catch (error) {
+        console.error('User /me error:', error);
+        res.status(401).json({ error: 'Invalid or expired token' });
+    }
+});
+
 module.exports = router;

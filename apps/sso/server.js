@@ -99,7 +99,7 @@ async function startServer() {
         
         // Sync database models (be careful in production)
         if (process.env.NODE_ENV !== 'production') {
-            await sequelize.sync({ alter: true });
+            //await sequelize.sync({ alter: true });
             console.log('Database models synchronized');
         }
         

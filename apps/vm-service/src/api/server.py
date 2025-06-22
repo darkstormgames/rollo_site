@@ -29,7 +29,15 @@ router = APIRouter()
 
 def get_db() -> Session:
     """Get database session."""
-    return DatabaseSession.get_session()
+    db_gen = DatabaseSession.get_session()
+    db = next(db_gen)
+    try:
+        yield db
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
 
 def validate_auth_token(token: str) -> bool:
@@ -142,10 +150,10 @@ async def list_servers(
         query = query.filter(Server.hostname.ilike(f"%{hostname}%"))
     if agent_version:
         query = query.filter(Server.agent_version == agent_version)
-    
+    print(f"Current user: {current_user}")
     # Only show servers owned by current user (unless admin)
     # TODO: Add admin role check
-    query = query.filter(Server.user_id == current_user.id)
+    query = query.filter(Server.user_id == current_user["id"])
     
     # Count total
     total = query.count()

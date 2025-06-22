@@ -6,6 +6,7 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
+# from models.base import create_tables, drop_tables, DatabaseSession
 from models.base import create_tables, drop_tables, DatabaseSession
 from models import User, Role
 from passlib.context import CryptContext

@@ -27,7 +27,15 @@ router = APIRouter()
 
 def get_db() -> Session:
     """Get database session."""
-    return DatabaseSession.get_session()
+    db_gen = DatabaseSession.get_session()
+    db = next(db_gen)
+    try:
+        yield db
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
 
 def template_to_response(template: VMTemplate) -> TemplateResponse:

@@ -5,9 +5,10 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from models.base import BaseModel
+# from models.base import BaseModel
+from models.base import Base
 
-class ConsoleSession(BaseModel):
+class ConsoleSession(Base):
     """Console session model for tracking active VM console connections."""
     
     __tablename__ = "console_sessions"

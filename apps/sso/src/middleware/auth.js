@@ -15,7 +15,6 @@ const authenticateToken = async (req, res, next) => {
 
     try {
         const decoded = await JWTManager.verifyAccessToken(token);
-        
         // Verify user still exists and is active
         const user = await User.findOne({
             where: {
@@ -24,7 +23,6 @@ const authenticateToken = async (req, res, next) => {
             },
             attributes: ['id', 'username', 'email', 'access_level', 'is_active']
         });
-
         if (!user) {
             return res.status(401).json({ 
                 error: 'User not found or inactive',
@@ -41,6 +39,7 @@ const authenticateToken = async (req, res, next) => {
         req.tokenData = decoded;
         next();
     } catch (error) {
+        console.error('Token verification error:', error);
         return res.status(403).json({ 
             error: 'Invalid or expired token',
             code: 'TOKEN_INVALID'

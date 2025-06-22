@@ -37,10 +37,14 @@ app = FastAPI(
 # Add middlewares
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=settings.cors_credentials,
-    allow_methods=settings.cors_methods,
-    allow_headers=settings.cors_headers
+    # allow_origins=settings.cors_origins,
+    # allow_credentials=settings.cors_credentials,
+    # allow_methods=settings.cors_methods,
+    # allow_headers=settings.cors_headers
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 # Add request ID middleware
@@ -126,7 +130,15 @@ async def root():
 # Dependency to get database session
 def get_db() -> Session:
     """Database dependency for dependency injection."""
-    return DatabaseSession.get_session()
+    db_gen = DatabaseSession.get_session()
+    db = next(db_gen)
+    try:
+        yield db
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
 
 if __name__ == "__main__":

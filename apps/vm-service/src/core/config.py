@@ -1,7 +1,9 @@
 """Configuration management for VM Service."""
 import os
 from typing import Optional
+from dotenv import load_dotenv
 
+load_dotenv()  # Load environment variables from .env file
 
 class Settings:
     """Application settings loaded from environment variables."""
