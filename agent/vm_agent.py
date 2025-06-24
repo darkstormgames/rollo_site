@@ -10,7 +10,7 @@ from datetime import datetime
 import schedule
 import threading
 
-from .config import AgentConfig, load_config, validate_config, get_agent_id
+from config import AgentConfig, load_config, validate_config, get_agent_id
 from .api_client import APIClient
 from .metrics import MetricsCollector
 from .operations import VMOperations, VMOperationError

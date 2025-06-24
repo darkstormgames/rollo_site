@@ -12,6 +12,7 @@
 
 # Build results
 .angular/
+venv/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
